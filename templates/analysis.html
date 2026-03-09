@@ -14,8 +14,8 @@
         <div class="card shadow-sm border-0 border-start border-primary border-5 h-100">
             <div class="card-body">
                 <h6 class="text-uppercase text-muted fw-bold mb-2">Conversations</h6>
-                <h2 class="text-dark mb-0">3 <small class="fs-6 text-success"><i class="bi bi-arrow-up"></i> +1 from
-                        yesterday</small></h2>
+                <h2 class="text-dark mb-0">{{ total_conversations }} <small class="fs-6 text-success"><i
+                            class="bi bi-activity"></i> Lifetime</small></h2>
             </div>
         </div>
     </div>
@@ -24,8 +24,9 @@
         <div class="card shadow-sm border-0 border-start border-success border-5 h-100">
             <div class="card-body">
                 <h6 class="text-uppercase text-muted fw-bold mb-2">Vocabulary Score</h6>
-                <h2 class="text-dark mb-0">85% <small class="fs-6 text-success"><i class="bi bi-arrow-up"></i>
-                        +5%</small></h2>
+                <h2 class="text-dark mb-0">{{ accuracy }}% <small class="fs-6 text-success"><i
+                            class="bi bi-check-circle"></i>
+                        Efficiency</small></h2>
             </div>
         </div>
     </div>
@@ -34,8 +35,9 @@
         <div class="card shadow-sm border-0 border-start border-warning border-5 h-100">
             <div class="card-body">
                 <h6 class="text-uppercase text-muted fw-bold mb-2">Grammar Mistakes Fixed</h6>
-                <h2 class="text-dark mb-0">12 <small class="fs-6 text-danger"><i class="bi bi-arrow-down"></i>
-                        -2</small></h2>
+                <h2 class="text-dark mb-0">{{ mistakes_fixed }} <small class="fs-6 text-info"><i
+                            class="bi bi-lightbulb"></i>
+                        Learned</small></h2>
             </div>
         </div>
     </div>
@@ -59,30 +61,21 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td class="text-danger">"She go to the market."</td>
-                                <td class="text-success fw-bold">"She goes to the market."</td>
-                                <td><span class="badge bg-secondary">Verb Tense</span></td>
-                            </tr>
-                            <tr>
-                                <td class="text-danger">"I did not went there."</td>
-                                <td class="text-success fw-bold">"I did not go there."</td>
-                                <td><span class="badge bg-secondary">Past Tense Rule</span></td>
-                            </tr>
-                            <tr>
-                                <td class="text-danger">"He is more taller."</td>
-                                <td class="text-success fw-bold">"He is taller."</td>
-                                <td><span class="badge bg-secondary">Adjectives</span></td>
-                            </tr>
-                            <!-- These are demo entries. When connected to DB, loop through user's session mistakes -->
                             {% if mistakes %}
                             {% for m in mistakes %}
                             <tr>
-                                <td class="text-danger">"{{ m.original }}"</td>
-                                <td class="text-success fw-bold">"{{ m.corrected }}"</td>
+                                <td class="text-danger">"{{ m.user_text }}"</td>
+                                <td class="text-success fw-bold">"{{ m.corrections }}"</td>
                                 <td><span class="badge bg-secondary">AI Correction</span></td>
                             </tr>
                             {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4">
+                                    <i class="bi bi-emoji-smile fs-1 d-block mb-2"></i>
+                                    No corrections logged yet. Start a conversation to see your progress!
+                                </td>
+                            </tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -108,7 +101,7 @@
                     <small class="text-muted">mins</small>
                 </div>
             </div>
-            <p class="text-muted mt-3 mb-0">Great job! You are 15 mins away from your daily goal.</p>
+            <p class="text-muted mt-3 mb-0">The more you practice, the more accurate this analysis becomes!</p>
         </div>
     </div>
 </div>

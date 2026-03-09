@@ -1,6 +1,35 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+    .orange-box {
+        background-color: #fd7e14 !important;
+        color: white !important;
+        padding: 10px;
+        border-radius: 8px;
+        border-left: 5px solid #bd4b00;
+        margin-top: 10px;
+        font-size: 0.9rem;
+    }
+
+    .translation-hint {
+        background-color: #f0f7ff;
+        border-left: 5px solid #007bff;
+        color: #0056b3;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        font-size: 0.95rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+    }
+
+    .translation-hint i {
+        font-size: 1.2rem;
+        margin-right: 10px;
+    }
+</style>
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card shadow-sm">
@@ -19,7 +48,7 @@
             <div class="card-footer">
                 <div class="input-group">
                     <button class="btn btn-outline-danger" type="button" id="btn-record">
-                        🎙️ Speak
+                        <span id="record-icon">🎙️</span> <span id="record-text">Start Speaking</span>
                     </button>
                     <input type="text" class="form-control" id="user-input" placeholder="Type your message here...">
                     <button class="btn btn-primary" type="button" id="btn-send">Send</button>
@@ -28,8 +57,8 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mt-4 border-warning d-none" id="correction-box">
-            <div class="card-header bg-warning text-dark">
+        <div class="card shadow-sm mt-4 d-none" id="correction-box" style="border: 2px solid #fd7e14;">
+            <div class="card-header text-white" style="background-color: #fd7e14;">
                 <h5 class="mb-0">Corrections & Feedback</h5>
             </div>
             <div class="card-body">
@@ -50,6 +79,10 @@
     const aiThinking = document.getElementById('ai-thinking');
     const correctionBox = document.getElementById('correction-box');
     const correctionText = document.getElementById('correction-text');
+    const recordIcon = document.getElementById('record-icon');
+    const recordText = document.getElementById('record-text');
+
+    let isRecording = false;
 
     // Speech Recognition Setup
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -61,7 +94,10 @@
         recognition.lang = 'en-US';
 
         recognition.onstart = function () {
+            isRecording = true;
             btnRecord.classList.replace('btn-outline-danger', 'btn-danger');
+            recordIcon.innerText = "⏹️";
+            recordText.innerText = "Stop Speaking";
             recordingStatus.classList.remove('d-none');
         };
 
@@ -85,22 +121,33 @@
     }
 
     function resetRecordButton() {
+        isRecording = false;
         btnRecord.classList.replace('btn-danger', 'btn-outline-danger');
+        recordIcon.innerText = "🎙️";
+        recordText.innerText = "Start Speaking";
         recordingStatus.classList.add('d-none');
     }
 
     btnRecord.addEventListener('click', () => {
         if (recognition) {
-            recognition.start();
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
         }
     });
 
-    // Text to Speech
+    // Text to Speech with logging
     function speak(text) {
         if ('speechSynthesis' in window) {
+            console.log("AI speaking:", text);
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'en-US';
+            utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);
+        } else {
+            console.warn("Speech synthesis not supported in this browser.");
         }
     }
 
@@ -135,18 +182,48 @@
             aiThinking.classList.add('d-none');
 
             if (data.response) {
-                addMessage('AI', data.response, true);
+                let messageHtml = "";
+
+                // Show translation if user spoke in native language
+                if (data.translation && data.translation !== "None") {
+                    messageHtml += `<div class="translation-hint text-dark"><i class="bi bi-translate"></i> <span>${data.translation}</span></div>`;
+                }
+
+                messageHtml += data.response;
+
+                // Show correction in Orange Box inside chat
+                if (data.corrections && data.corrections !== "None" && data.corrections.toLowerCase() !== "no corrections needed.") {
+                    messageHtml += `<div class="orange-box"><strong>Correction:</strong> ${data.corrections}</div>`;
+
+                    // Also update the standalone correction box at the bottom
+                    correctionBox.classList.remove('d-none');
+                    correctionText.innerText = data.corrections;
+                } else {
+                    correctionBox.classList.add('d-none');
+                }
+
+                addMessage('AI', messageHtml, true);
+
+                // Speak response immediately
                 speak(data.response);
-            }
-            if (data.corrections && data.corrections !== "None" && data.corrections.toLowerCase() !== "no corrections needed.") {
-                correctionBox.classList.remove('d-none');
-                correctionText.innerText = data.corrections;
-                // Speak the correction after a short delay so it doesn't overlap immediately
-                setTimeout(() => {
-                    speak("I have a correction. " + data.corrections);
-                }, 1500);
-            } else {
-                correctionBox.classList.add('d-none');
+
+                // Speak translation or correction with shorter, staggered delays
+                if (data.translation && data.translation !== "None") {
+                    setTimeout(() => speak(data.translation), 1000);
+                }
+
+                const hasCorrection = data.corrections &&
+                    data.corrections !== "None" &&
+                    data.corrections.toLowerCase().indexOf("no corrections") === -1;
+
+                if (hasCorrection) {
+                    // Larger delay if there's a translation to avoid overlapping
+                    const delay = (data.translation && data.translation !== "None") ? 4000 : 2000;
+                    setTimeout(() => {
+                        speak("I have a correction for you.");
+                        speak(data.corrections);
+                    }, delay);
+                }
             }
 
         } catch (error) {
