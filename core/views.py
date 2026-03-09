@@ -9,7 +9,7 @@ import google.generativeai as genai
 
 # Configure Gemini
 genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
-
+print("haaaaaaa",os.environ.get("GOOGLE_API_KEY", ""))
 def home(request):
     return render(request, 'home.html')
 
