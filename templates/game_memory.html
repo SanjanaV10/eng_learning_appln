@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center pb-5">
+    <div class="col-md-10 text-center">
+        <h2 class="display-5 fw-bold text-primary mb-3">Memory Match: Grammar edition</h2>
+        <p class="lead text-secondary mb-5">Flip the cards and match the English word to its correct synonym or
+            definition.</p>
+
+        <div class="card glass-card shadow-lg border-0 text-start mx-auto p-4" style="max-width: 900px;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold m-0 text-dark">Moves: <span id="moves" class="text-primary">0</span></h5>
+                <h5 class="fw-bold m-0 text-dark">Matches: <span id="matches" class="text-success">0</span> / 6</h5>
+                <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="initGame()">Restart
+                    Game</button>
+            </div>
+
+            <div class="memory-grid gap-3" id="memory-grid">
+                <!-- Cards injected here -->
+            </div>
+
+            <div id="win-message" class="text-center mt-5 d-none animation-fade-in">
+                <i class="bi bi-star-fill text-warning" style="font-size: 3rem;"></i>
+                <h3 class="fw-bold text-dark mt-3">Incredible! You matched them all!</h3>
+                <p class="text-muted">Total Moves: <span id="final-moves"></span></p>
+                <button class="btn btn-primary-gradient btn-lg px-5 mt-3 btn-modern" onclick="initGame()">Play Again
+                    with New Cards</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .memory-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        perspective: 1000px;
+    }
+
+    .memory-card {
+        aspect-ratio: 1;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.5s ease;
+    }
+
+    .memory-card.flipped {
+        transform: rotateY(180deg);
+    }
+
+    .card-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-front {
+        background: linear-gradient(135deg, #4A90E2, #50E3C2);
+        transform: rotateY(180deg);
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    .card-back {
+        background: white;
+        border: 2px solid #4A90E2;
+        color: #4A90E2;
+        font-size: 2rem;
+    }
+
+    .animation-fade-in {
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Pool of matching pairs. We randomly select 6 for each game.
+    const allPairs = [
+        { id: 1, type: "A", text: "Abundant" }, { id: 1, type: "B", text: "Plentiful" },
+        { id: 2, type: "A", text: "Eager" }, { id: 2, type: "B", text: "Keen / Enthusiastic" },
+        { id: 3, type: "A", text: "Diligent" }, { id: 3, type: "B", text: "Hard-working" },
+        { id: 4, type: "A", text: "Obsolete" }, { id: 4, type: "B", text: "Out of date" },
+        { id: 5, type: "A", text: "Vast" }, { id: 5, type: "B", text: "Very large" },
+        { id: 6, type: "A", text: "To conceal" }, { id: 6, type: "B", text: "To hide" },
+        { id: 7, type: "A", text: "To commence" }, { id: 7, type: "B", text: "To begin" },
+        { id: 8, type: "A", text: "Deteriorate" }, { id: 8, type: "B", text: "Become worse" },
+        { id: 9, type: "A", text: "Inevitable" }, { id: 9, type: "B", text: "Unavoidable" },
+        { id: 10, type: "A", text: "Lucrative" }, { id: 10, type: "B", text: "Profitable" },
+        { id: 11, type: "A", text: "Enigmatic" }, { id: 11, type: "B", text: "Mysterious" },
+        { id: 12, type: "A", text: "Tenacious" }, { id: 12, type: "B", text: "Persistent" },
+        { id: 13, type: "A", text: "Serene" }, { id: 13, type: "B", text: "Peaceful" },
+        { id: 14, type: "A", text: "Authentic" }, { id: 14, type: "B", text: "Genuine" },
+        { id: 15, type: "A", text: "Benevolent" }, { id: 15, type: "B", text: "Kind-hearted" },
+        { id: 16, type: "A", text: "Capricious" }, { id: 16, type: "B", text: "Fickle" },
+        { id: 17, type: "A", text: "Eloquent" }, { id: 17, type: "B", text: "Articulate" },
+        { id: 18, type: "A", text: "Pragmatic" }, { id: 18, type: "B", text: "Realistic" },
+        { id: 19, type: "A", text: "Resilient" }, { id: 19, type: "B", text: "Tough" },
+        { id: 20, type: "A", text: "Zealous" }, { id: 20, type: "B", text: "Fervent" },
+        { id: 21, type: "A", text: "Acquire" }, { id: 21, type: "B", text: "Gain / Obtain" },
+        { id: 22, type: "A", text: "Baffle" }, { id: 22, type: "B", text: "Confuse / Puzzle" },
+        { id: 23, type: "A", text: "Candid" }, { id: 23, type: "B", text: "Honest / Frank" },
+        { id: 24, type: "A", text: "Dwell" }, { id: 24, type: "B", text: "Live / Reside" },
+        { id: 25, type: "A", text: "Elude" }, { id: 25, type: "B", text: "Escape / Avoid" },
+        { id: 26, type: "A", text: "Falter" }, { id: 26, type: "B", text: "Hesitate / Waver" },
+        { id: 27, type: "A", text: "Gaze" }, { id: 27, type: "B", text: "Stare / Look" },
+        { id: 28, type: "A", text: "Hinder" }, { id: 28, type: "B", text: "Obstruct / Block" },
+        { id: 29, type: "A", text: "Incite" }, { id: 29, type: "B", text: "Provoke / Stir up" },
+        { id: 30, type: "A", text: "Jeer" }, { id: 30, type: "B", text: "Mock / Ridicule" },
+        { id: 31, type: "A", text: "Kindle" }, { id: 31, type: "B", text: "Ignite / Light" },
+        { id: 32, type: "A", text: "Linger" }, { id: 32, type: "B", text: "Stay / Wait" },
+        { id: 33, type: "A", text: "Mingle" }, { id: 33, type: "B", text: "Mix / Blend" },
+        { id: 34, type: "A", text: "Nurture" }, { id: 34, type: "B", text: "Care for / Foster" },
+        { id: 35, type: "A", text: "Observe" }, { id: 35, type: "B", text: "Watch / Note" },
+        { id: 36, type: "A", text: "Ponder" }, { id: 36, type: "B", text: "Think / Consider" },
+        { id: 37, type: "A", text: "Quell" }, { id: 37, type: "B", text: "Suppress / Crush" },
+        { id: 38, type: "A", text: "Relinquish" }, { id: 38, type: "B", text: "Give up / Resign" },
+        { id: 39, type: "A", text: "Savor" }, { id: 39, type: "B", text: "Enjoy / Taste" },
+        { id: 40, type: "A", text: "Thrive" }, { id: 40, type: "B", text: "Flourish / Grow" }
+    ];
+
+    let grid = document.getElementById("memory-grid");
+    let movesDisplay = document.getElementById("moves");
+    let matchesDisplay = document.getElementById("matches");
+    let winMessage = document.getElementById("win-message");
+    let finalMoves = document.getElementById("final-moves");
+
+    let hasFlippedCard = false;
+    let lockBoard = false;
+    let firstCard, secondCard;
+    let moves = 0;
+    let matches = 0;
+
+    function shuffleOptions(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex != 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    function initGame() {
+        grid.innerHTML = "";
+        winMessage.classList.add('d-none');
+        moves = 0;
+        matches = 0;
+        hasFlippedCard = false;
+        lockBoard = false;
+        firstCard = null;
+        secondCard = null;
+
+        movesDisplay.innerText = moves;
+        matchesDisplay.innerText = matches;
+
+        // Get used IDs from sessionStorage
+        let askedIds = JSON.parse(sessionStorage.getItem('memory_asked_ids') || '[]');
+
+        // Filter out unique IDs from allPairs (each ID has 2 cards, so we just check the ID)
+        const uniqueIds = Array.from(new Set(allPairs.map(p => p.id)));
+        let availableIds = uniqueIds.filter(id => !askedIds.includes(id));
+
+        if (availableIds.length < 6) {
+            // Reset if we don't have enough left
+            askedIds = [];
+            availableIds = uniqueIds;
+        }
+
+        // Pick 6 random unique IDs from available
+        let selectedIds = shuffleOptions([...availableIds]).slice(0, 6);
+
+        // Save back to session storage
+        sessionStorage.setItem('memory_asked_ids', JSON.stringify([...askedIds, ...selectedIds]));
+
+        let gameCards = [];
+        selectedIds.forEach(id => {
+            gameCards.push(allPairs.find(p => p.id === id && p.type === "A"));
+            gameCards.push(allPairs.find(p => p.id === id && p.type === "B"));
+        });
+
+        gameCards = shuffleOptions(gameCards);
+
+        gameCards.forEach((cardData, index) => {
+            let cardElement = document.createElement("div");
+            cardElement.classList.add("memory-card");
+            cardElement.dataset.name = cardData.id;
+
+            cardElement.innerHTML = `
+                <div class="card-front">${cardData.text}</div>
+                <div class="card-back"><i class="bi bi-question-circle"></i></div>
+            `;
+
+            cardElement.addEventListener("click", flipCard);
+            grid.appendChild(cardElement);
+        });
+    }
+
+    function flipCard() {
+        if (lockBoard) return;
+        if (this === firstCard) return;
+
+        this.classList.add("flipped");
+
+        if (!hasFlippedCard) {
+            hasFlippedCard = true;
+            firstCard = this;
+            return;
+        }
+
+        secondCard = this;
+        checkForMatch();
+    }
+
+    function checkForMatch() {
+        moves++;
+        movesDisplay.innerText = moves;
+        let isMatch = firstCard.dataset.name === secondCard.dataset.name;
+        isMatch ? disableCards() : unflipCards();
+    }
+
+    function disableCards() {
+        firstCard.removeEventListener("click", flipCard);
+        secondCard.removeEventListener("click", flipCard);
+
+        firstCard.style.opacity = '0.7';
+        secondCard.style.opacity = '0.7';
+
+        matches++;
+        matchesDisplay.innerText = matches;
+
+        if (matches === 6) {
+            setTimeout(() => {
+                grid.innerHTML = "";
+                winMessage.classList.remove("d-none");
+                finalMoves.innerText = moves;
+            }, 800);
+        }
+        resetBoard();
+    }
+
+    function unflipCards() {
+        lockBoard = true;
+        setTimeout(() => {
+            firstCard.classList.remove("flipped");
+            secondCard.classList.remove("flipped");
+            resetBoard();
+        }, 1200);
+    }
+
+    function resetBoard() {
+        [hasFlippedCard, lockBoard] = [false, false];
+        [firstCard, secondCard] = [null, null];
+    }
+
+    // Start
+    initGame();
+</script>
+{% endblock %}

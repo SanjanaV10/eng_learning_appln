@@ -1,0 +1,415 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-9 text-center">
+        <h2 class="display-5 fw-bold text-primary mb-3">SpeakSmart Quizzes</h2>
+        <p class="lead text-secondary mb-5">Test your grammar and vocabulary knowledge with our interactive quizzes.</p>
+
+        <div class="card glass-card shadow-lg border-0 text-start mx-auto" style="max-width: 800px;">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-patch-question me-2"></i> English Proficiency Quiz</h5>
+                <span class="badge bg-light text-primary fs-6">Score: <span id="quiz-score">0</span></span>
+            </div>
+            <div class="card-body p-5" id="quiz-container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="text-muted fw-bold">Question <span id="current-q">1</span> of <span id="total-q">5</span>
+                    </h5>
+                </div>
+
+                <h3 class="mb-4 text-dark" id="question-text">Loading question...</h3>
+
+                <div class="d-grid gap-3 mt-4" id="answers-container">
+                    <!-- Option buttons will be injected here -->
+                </div>
+
+                <div id="quiz-feedback" class="mt-4 p-3 rounded d-none"></div>
+
+                <div class="text-end mt-4 d-none" id="next-btn-container">
+                    <button class="btn btn-primary btn-lg px-5 btn-modern" id="btn-next-quiz">Next Question</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const allQuestionsPool = [
+        {
+            question: "Choose the correct sentence:",
+            options: ["She don't like apples.", "She doesn't likes apples.", "She doesn't like apples.", "She not like apples."],
+            correct: 2,
+            explanation: "'Doesn't' is the correct auxiliary for third-person singular, and the main verb ('like') remains in its base form."
+        },
+        {
+            question: "If it rains tomorrow, I ___ at home.",
+            options: ["will stay", "would stay", "stayed", "staying"],
+            correct: 0,
+            explanation: "This is a First Conditional sentence, which uses 'will + base verb' in the result clause."
+        },
+        {
+            question: "Identify the synonym for 'Abundant':",
+            options: ["Scarce", "Plentiful", "Empty", "Brief"],
+            correct: 1,
+            explanation: "'Abundant' means existing or available in large quantities; 'Plentiful' is its direct synonym."
+        },
+        {
+            question: "I have been waiting here ___ exactly two hours.",
+            options: ["since", "for", "from", "during"],
+            correct: 1,
+            explanation: "Use 'for' with a duration of time (two hours). Use 'since' with a point in time (e.g., since 2 PM)."
+        },
+        {
+            question: "By this time next year, she ___ her degree.",
+            options: ["finishes", "will finish", "will have finished", "is finishing"],
+            correct: 2,
+            explanation: "The Future Perfect tense ('will have finished') is used to express an action that will be completed before a specified time in the future."
+        },
+        {
+            question: "Which word is an antonym for 'Expand'?",
+            options: ["Grow", "Increase", "Shrink", "Develop"],
+            correct: 2,
+            explanation: "'Shrink' means to become smaller, which is the opposite of 'Expand'."
+        },
+        {
+            question: "He is used to ___ up early in the morning.",
+            options: ["wake", "woke", "waking", "waken"],
+            correct: 2,
+            explanation: "After 'to be used to', we must use the gerund (-ing) form of the verb."
+        },
+        {
+            question: "They ___ each other since they were children.",
+            options: ["know", "knew", "have known", "are knowing"],
+            correct: 2,
+            explanation: "The present perfect tense 'have known' is used for an action that started in the past and continues to the present."
+        },
+        {
+            question: "I am looking forward ___ you.",
+            options: ["to see", "to seeing", "seeing", "see"],
+            correct: 1,
+            explanation: "The phrase 'look forward to' is followed by a gerund (-ing form)."
+        },
+        {
+            question: "Hardly had I reached the station ___ the train started.",
+            options: ["than", "then", "when", "that"],
+            correct: 2,
+            explanation: "The conjunction 'Hardly... when' is used to show two events happening in quick succession."
+        },
+        {
+            question: "She is the woman ___ helped me yesterday.",
+            options: ["whom", "whose", "who", "which"],
+            correct: 2,
+            explanation: "'Who' is the subject relative pronoun referring to 'the woman'."
+        },
+        {
+            question: "I wish I ___ more time to finish the project.",
+            options: ["have", "had", "will have", "have had"],
+            correct: 1,
+            explanation: "After 'wish', use the past tense 'had' to talk about a present hypothetical situation."
+        },
+        {
+            question: "He succeeded ___ passing the difficult exam.",
+            options: ["in", "on", "at", "with"],
+            correct: 0,
+            explanation: "The verb 'succeed' is typically followed by the preposition 'in' plus a gerund."
+        },
+        {
+            question: "What is a synonym for 'Meticulous'?",
+            options: ["Careless", "Thorough", "Sloppy", "Hasty"],
+            correct: 1,
+            explanation: "'Meticulous' means showing great attention to detail, which is synonymous with 'Thorough'."
+        },
+        {
+            question: "We had better ___ now or we will be late.",
+            options: ["leave", "to leave", "leaving", "left"],
+            correct: 0,
+            explanation: "The phrase 'had better' is followed by the base form of the verb."
+        },
+        {
+            question: "Despite ___ tired, he continued to work.",
+            options: ["he was", "being", "was", "of being"],
+            correct: 1,
+            explanation: "'Despite' must be followed by a noun phrase or a gerund ('being')."
+        },
+        {
+            question: "It is high time you ___ a job.",
+            options: ["get", "will get", "got", "getting"],
+            correct: 2,
+            explanation: "After 'It is high time', we use the past subjunctive (past simple form) to indicate something should have been done already."
+        },
+        {
+            question: "Her car broke ___ on the way to the airport.",
+            options: ["out", "down", "up", "off"],
+            correct: 1,
+            explanation: "'Break down' is the phrasal verb used when a machine or vehicle stops working."
+        },
+        {
+            question: "You ___ have seen him yesterday, because he is in Paris.",
+            options: ["mustn't", "can't", "shouldn't", "mightn't"],
+            correct: 1,
+            explanation: "'Can't have' expresses impossibility in the past."
+        },
+        {
+            question: "Identify the antonym for 'Obscure':",
+            options: ["Vague", "Hidden", "Clear", "Complicated"],
+            correct: 2,
+            explanation: "'Obscure' means unclear or hard to understand, so 'Clear' is the opposite."
+        },
+        {
+            question: "The teacher, along with her students, ___ coming to the party.",
+            options: ["is", "are", "were", "be"],
+            correct: 0,
+            explanation: "When the subject is followed by 'along with', the verb agrees with the first noun (The teacher)."
+        },
+        {
+            question: "Choose the correct spelling:",
+            options: ["Accomodate", "Acommodate", "Accommodate", "Acomodate"],
+            correct: 2,
+            explanation: "'Accommodate' has two 'c's and two 'm's."
+        },
+        {
+            question: "I would have helped you if you ___ me.",
+            options: ["asked", "had asked", "would ask", "would have asked"],
+            correct: 1,
+            explanation: "In the third conditional, the 'if' clause uses 'had + past participle'."
+        },
+        {
+            question: "Which sentence uses the correct punctuaton?",
+            options: ["Its a bright, sunny day.", "It's a bright sunny day.", "Its a bright sunny day.", "It's a bright, sunny day."],
+            correct: 3,
+            explanation: "'It's' is a contraction for 'It is', and multiple adjectives should be separated by a comma."
+        },
+        {
+            question: "He is senior ___ me in the office.",
+            options: ["than", "from", "to", "with"],
+            correct: 2,
+            explanation: "Adjectives like 'senior', 'junior', 'superior' are followed by 'to', not 'than'."
+        },
+        {
+            question: "She is one of the few people who ___ always on time.",
+            options: ["is", "are", "was", "has been"],
+            correct: 1,
+            explanation: "The relative pronoun 'who' refers to 'people' (plural), so the verb should be 'are'."
+        },
+        {
+            question: "I ___ my homework when the light went out.",
+            options: ["do", "did", "was doing", "have done"],
+            correct: 2,
+            explanation: "The past continuous is used for an action that was in progress when another action interrupted it."
+        },
+        {
+            question: "Seldom ___ such a beautiful sunset.",
+            options: ["I saw", "I have seen", "did I see", "have I seen"],
+            correct: 3,
+            explanation: "When a sentence starts with 'Seldom', 'Never', or 'Hardly', we use subject-auxiliary inversion."
+        },
+        {
+            question: "What is the collective noun for a group of lions?",
+            options: ["Pack", "Herd", "Pride", "Flock"],
+            correct: 2,
+            explanation: "A group of lions is called a 'Pride'."
+        },
+        {
+            question: "I am thinking ___ buying a new car.",
+            options: ["on", "of", "to", "for"],
+            correct: 1,
+            explanation: "The verb 'think' is often followed by the preposition 'of' when considering an action."
+        },
+        {
+            question: "Neither of the candidates ___ suitable for the job.",
+            options: ["are", "is", "were", "been"],
+            correct: 1,
+            explanation: "'Neither' is singular and takes a singular verb 'is'."
+        },
+        {
+            question: "He has a lot of ___ in his room.",
+            options: ["furnitures", "furniture", "piece of furnitures", "furnitur"],
+            correct: 1,
+            explanation: "'Furniture' is an uncountable noun and does not have a plural form."
+        },
+        {
+            question: "I will call you as soon as I ___.",
+            options: ["will arrive", "arrive", "arrived", "arriving"],
+            correct: 1,
+            explanation: "In time clauses referring to the future, we use the present simple after 'as soon as'."
+        },
+        {
+            question: "The jury ___ reached a unanimous decision.",
+            options: ["have", "has", "are", "is"],
+            correct: 1,
+            explanation: "When a collective noun acts as a single unit, it takes a singular verb."
+        },
+        {
+            question: "If I ___ known, I would have told you.",
+            options: ["had", "would have", "have", "did"],
+            correct: 0,
+            explanation: "The third conditional past perfect 'had known'."
+        },
+        {
+            question: "Which of these is a 'transitive' verb?",
+            options: ["Sleep", "Sit", "Eat", "Wait"],
+            correct: 2,
+            explanation: "A transitive verb ('Eat') requires a direct object (Eat something)."
+        },
+        {
+            question: "He ran ___ so as not to miss the bus.",
+            options: ["fast", "fastly", "quick", "speedly"],
+            correct: 0,
+            explanation: "'Fast' is both an adjective and an adverb; 'fastly' does not exist."
+        },
+        {
+            question: "Which word means 'to call off'?",
+            options: ["Continue", "Cancel", "Postpone", "Begin"],
+            correct: 1,
+            explanation: "The phrasal verb 'call off' means to cancel."
+        },
+        {
+            question: "I prefer tea ___ coffee.",
+            options: ["than", "to", "over", "from"],
+            correct: 1,
+            explanation: "We use 'to' with the verb 'prefer'."
+        },
+        {
+            question: "He is ___ tallest boy in the class.",
+            options: ["a", "an", "the", "one"],
+            correct: 2,
+            explanation: "Superlative adjectives always take the definite article 'the'."
+        }
+    ];
+
+    function shuffleOptions(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex != 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    // Generate a fresh set of questions every time the page loads
+    let quizData = [];
+
+    function initNewGame() {
+        // Get asked question indices from sessionStorage
+        let askedIndices = JSON.parse(sessionStorage.getItem('quiz_asked_indices') || '[]');
+
+        let availableQuestions = allQuestionsPool.map((q, idx) => ({ ...q, originalIndex: idx }))
+            .filter(q => !askedIndices.includes(q.originalIndex));
+
+        if (availableQuestions.length < 5) {
+            // Not enough questions left, reset the pool
+            askedIndices = [];
+            availableQuestions = allQuestionsPool.map((q, idx) => ({ ...q, originalIndex: idx }));
+        }
+
+        const selectedQuestions = shuffleOptions(availableQuestions).slice(0, 5);
+
+        // Save the newly asked question indices
+        const newlyAskedIndices = selectedQuestions.map(q => q.originalIndex);
+        sessionStorage.setItem('quiz_asked_indices', JSON.stringify([...askedIndices, ...newlyAskedIndices]));
+
+        quizData = selectedQuestions;
+
+        currentQuestionIndex = 0;
+        currentScore = 0;
+        scoreDisplay.innerText = "0";
+        totalQDisplay.innerText = quizData.length;
+
+        loadQuizQuestion();
+    }
+
+    let currentQuestionIndex = 0;
+    let currentScore = 0;
+
+    const questionText = document.getElementById('question-text');
+    const answersContainer = document.getElementById('answers-container');
+    const currentQDisplay = document.getElementById('current-q');
+    const totalQDisplay = document.getElementById('total-q');
+    const scoreDisplay = document.getElementById('quiz-score');
+    const feedbackBox = document.getElementById('quiz-feedback');
+    const nextBtnContainer = document.getElementById('next-btn-container');
+    const btnNextQuiz = document.getElementById('btn-next-quiz');
+    const quizContainer = document.getElementById('quiz-container');
+
+    function loadQuizQuestion() {
+        if (currentQuestionIndex >= quizData.length) {
+            showResults();
+            return;
+        }
+
+        const q = quizData[currentQuestionIndex];
+        currentQDisplay.innerText = currentQuestionIndex + 1;
+        questionText.innerText = q.question;
+
+        // Shuffle options for the current question
+        const shuffledOptions = shuffleOptions([...q.options]);
+
+        answersContainer.innerHTML = '';
+        shuffledOptions.forEach((opt, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-outline-primary btn-lg text-start px-4 option-btn transition-transform';
+            btn.innerHTML = `<span class="fw-bold me-2">${String.fromCharCode(65 + index)}.</span> ${opt}`;
+            btn.onclick = () => selectAnswer(opt, q.options[q.correct], btn, q.explanation);
+            answersContainer.appendChild(btn);
+        });
+
+        feedbackBox.classList.add('d-none');
+        nextBtnContainer.classList.add('d-none');
+    }
+
+    function selectAnswer(selectedOpt, correctOpt, selectedBtn, explanation) {
+        const isCorrect = selectedOpt === correctOpt;
+        const btns = answersContainer.querySelectorAll('.option-btn');
+
+        btns.forEach((btn) => {
+            btn.disabled = true;
+            // Clean the inner text to just get the option string (removing the A., B., etc)
+            const btnText = btn.innerText.substring(3).trim();
+
+            if (btnText === correctOpt) {
+                btn.classList.replace('btn-outline-primary', 'btn-success');
+                btn.classList.add('text-white');
+            } else if (btnText === selectedOpt && !isCorrect) {
+                btn.classList.replace('btn-outline-primary', 'btn-danger');
+                btn.classList.add('text-white');
+            }
+        });
+
+        feedbackBox.classList.remove('d-none');
+        if (isCorrect) {
+            currentScore += 10;
+            scoreDisplay.innerText = currentScore;
+            feedbackBox.className = 'mt-4 p-3 rounded bg-success bg-opacity-10 border border-success text-success';
+            feedbackBox.innerHTML = `<strong><i class="bi bi-check-circle-fill"></i> Excellent!</strong><br><small>${explanation}</small>`;
+        } else {
+            feedbackBox.className = 'mt-4 p-3 rounded bg-danger bg-opacity-10 border border-danger text-danger';
+            feedbackBox.innerHTML = `<strong><i class="bi bi-x-circle-fill"></i> Incorrect</strong><br><small>${explanation}</small>`;
+        }
+
+        nextBtnContainer.classList.remove('d-none');
+    }
+
+    function showResults() {
+        quizContainer.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-trophy text-warning" style="font-size: 4rem;"></i>
+                <h2 class="mt-4 fw-bold text-dark">Quiz Completed!</h2>
+                <h4 class="text-muted mb-4">Your final score: <span class="text-primary">${currentScore}</span> out of ${quizData.length * 10}</h4>
+                <button class="btn btn-primary btn-modern px-5" onclick="location.reload()">Play Next Level</button>
+                <a href="/analysis/" class="btn btn-outline-modern btn-modern px-5 ms-3">View Progress</a>
+            </div>
+        `;
+    }
+
+    btnNextQuiz.addEventListener('click', () => {
+        currentQuestionIndex++;
+        loadQuizQuestion();
+    });
+
+    // Start quiz
+    initNewGame();
+</script>
+{% endblock %}

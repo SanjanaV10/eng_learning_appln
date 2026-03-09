@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row min-vh-100 align-items-center">
+    <div class="col-md-8 mx-auto text-center">
+        <h2 class="mb-4 text-primary">Learning Games</h2>
+        <p class="lead mb-5">Improve your vocabulary and grammar interactively.</p>
+
+        <div class="row g-4 mt-4">
+            <div class="col-md-4">
+                <div class="card glass-card h-100 shadow-sm transition-transform card-hover border-0">
+                    <div class="card-body p-4 text-center">
+                        <i class="bi bi-translate feature-icon text-primary display-4 mb-3 d-block"></i>
+                        <h4 class="card-title fw-bold text-dark mb-3">Vocabulary Match</h4>
+                        <p class="card-text text-muted mb-4">Match the English words to their correct meaning. Test your
+                            vocab speed!</p>
+                        <a href="{% url 'game_vocab_match' %}" class="btn btn-outline-primary btn-modern w-100">Play
+                            Now</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card glass-card h-100 shadow-sm transition-transform card-hover border-0">
+                    <div class="card-body p-4 text-center">
+                        <i class="bi bi-ui-checks feature-icon text-success display-4 mb-3 d-block"></i>
+                        <h4 class="card-title fw-bold text-dark mb-3">Fill in the Blanks</h4>
+                        <p class="card-text text-muted mb-4">Complete sentences by choosing the correct missing grammar
+                            word.</p>
+                        <a href="{% url 'game_fill_blanks' %}" class="btn btn-outline-success btn-modern w-100">Play
+                            Now</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card glass-card h-100 shadow-sm transition-transform card-hover border-0">
+                    <div class="card-body p-4 text-center">
+                        <i class="bi bi-grid-3x3 feature-icon text-warning display-4 mb-3 d-block"></i>
+                        <h4 class="card-title fw-bold text-dark mb-3">Memory Match</h4>
+                        <p class="card-text text-muted mb-4">Flip cards to match English words with their correct
+                            definitions.</p>
+                        <a href="{% url 'game_memory' %}" class="btn btn-outline-warning btn-modern w-100">Play Now</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

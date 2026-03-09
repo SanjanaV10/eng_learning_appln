@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 text-center">
+        <h2 class="text-primary fw-bold">Daily Progress Analysis</h2>
+        <p class="text-muted">Here is your performance overview for today.</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <!-- Stat Cards -->
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-primary border-5 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-2">Conversations</h6>
+                <h2 class="text-dark mb-0">3 <small class="fs-6 text-success"><i class="bi bi-arrow-up"></i> +1 from
+                        yesterday</small></h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-success border-5 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-2">Vocabulary Score</h6>
+                <h2 class="text-dark mb-0">85% <small class="fs-6 text-success"><i class="bi bi-arrow-up"></i>
+                        +5%</small></h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-warning border-5 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-2">Grammar Mistakes Fixed</h6>
+                <h2 class="text-dark mb-0">12 <small class="fs-6 text-danger"><i class="bi bi-arrow-down"></i>
+                        -2</small></h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Grammar Correction Log -->
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="fw-bold text-dark">Recent Grammar Corrections</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>You Said</th>
+                                <th>Correction</th>
+                                <th>Category</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-danger">"She go to the market."</td>
+                                <td class="text-success fw-bold">"She goes to the market."</td>
+                                <td><span class="badge bg-secondary">Verb Tense</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-danger">"I did not went there."</td>
+                                <td class="text-success fw-bold">"I did not go there."</td>
+                                <td><span class="badge bg-secondary">Past Tense Rule</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-danger">"He is more taller."</td>
+                                <td class="text-success fw-bold">"He is taller."</td>
+                                <td><span class="badge bg-secondary">Adjectives</span></td>
+                            </tr>
+                            <!-- These are demo entries. When connected to DB, loop through user's session mistakes -->
+                            {% if mistakes %}
+                            {% for m in mistakes %}
+                            <tr>
+                                <td class="text-danger">"{{ m.original }}"</td>
+                                <td class="text-success fw-bold">"{{ m.corrected }}"</td>
+                                <td><span class="badge bg-secondary">AI Correction</span></td>
+                            </tr>
+                            {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time spent chart placeholder -->
+    <div class="col-md-4">
+        <div
+            class="card shadow-sm border-0 h-100 bg-light text-center d-flex flex-column justify-content-center align-items-center p-4">
+            <h5 class="fw-bold text-dark mb-3">Time Spent Learning</h5>
+            <div class="position-relative d-inline-block">
+                <!-- Circular progress placeholder -->
+                <svg width="150" height="150" viewBox="0 0 100 100" class="d-block mx-auto">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#e9ecef" stroke-width="10" />
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#0d6efd" stroke-width="10" stroke-dasharray="283"
+                        stroke-dashoffset="70" class="text-primary" />
+                </svg>
+                <div class="position-absolute top-50 start-50 translate-middle">
+                    <h3 class="mb-0 fw-bold">45</h3>
+                    <small class="text-muted">mins</small>
+                </div>
+            </div>
+            <p class="text-muted mt-3 mb-0">Great job! You are 15 mins away from your daily goal.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

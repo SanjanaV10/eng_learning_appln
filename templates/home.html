@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row min-vh-100 align-items-center pb-5">
+    <div class="col-lg-8 mx-auto text-center mt-5">
+        <div class="mb-4">
+            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fs-6 mb-3">Welcome to
+                SpeakSmart</span>
+            <h1 class="display-3 fw-bold mb-4">Master English with <span class="hero-title">AI</span></h1>
+            <p class="lead text-secondary hero-subtitle col-md-10 mx-auto">Practice speaking, get real-time grammar
+                corrections, and play engaging games. Accelerate your English fluency with our advanced AI tutor.</p>
+        </div>
+
+        <div class="d-grid gap-3 d-sm-flex justify-content-sm-center hero-buttons mt-5">
+            <a href="{% url 'conversation' %}"
+                class="btn btn-primary-gradient btn-modern btn-lg px-5 gap-3 d-flex align-items-center justify-content-center">
+                <i class="bi bi-chat-dots fs-5"></i> Start Conversation
+            </a>
+            <a href="{% url 'games' %}"
+                class="btn btn-outline-modern btn-modern btn-lg px-5 d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-controller fs-5"></i> Play Games
+            </a>
+            <a href="{% url 'quizzes' %}"
+                class="btn btn-outline-modern btn-modern btn-lg px-5 d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-patch-question fs-5"></i> Quizzes
+            </a>
+        </div>
+
+        <div class="row mt-5 pt-5 text-start g-4">
+            <div class="col-md-4">
+                <div class="card glass-card h-100 p-3">
+                    <div class="card-body text-center">
+                        <i class="bi bi-mic feature-icon"></i>
+                        <h5 class="card-title fw-bold text-dark">AI Voice Coach</h5>
+                        <p class="card-text text-muted small mt-3">Talk naturally. Our AI listens, understands, and
+                            replies with oral feedback, mimicking a real conversation.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card glass-card h-100 p-3">
+                    <div class="card-body text-center">
+                        <i class="bi bi-spellcheck feature-icon"></i>
+                        <h5 class="card-title fw-bold text-dark">Grammar Correction</h5>
+                        <p class="card-text text-muted small mt-3">Get instant textual and oral corrections for your
+                            mistakes to rapidly improve your sentence structure.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card glass-card h-100 p-3">
+                    <div class="card-body text-center">
+                        <i class="bi bi-graph-up-arrow feature-icon"></i>
+                        <h5 class="card-title fw-bold text-dark">Progress Tracking</h5>
+                        <p class="card-text text-muted small mt-3">Monitor your daily learning progress, view corrected
+                            mistakes, and track game and quiz scores.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

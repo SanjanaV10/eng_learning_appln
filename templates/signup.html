@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card glass-card shadow-lg border-0 mt-5">
+            <div class="card-header bg-success text-white text-center py-4">
+                <h3 class="mb-0 fw-bold"><i class="bi bi-person-plus-fill me-2"></i> Join SpeakSmart</h3>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-success btn-lg btn-modern">Create Account</button>
+                    </div>
+                </form>
+                <div class="text-center mt-3">
+                    <p class="text-secondary">Already have an account? <a href="{% url 'login' %}"
+                            class="text-primary fw-bold text-decoration-none">Log In</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

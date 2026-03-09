@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card glass-card shadow-lg border-0 mt-5 text-center">
+            <div class="card-body p-5">
+                <i class="bi bi-box-arrow-left text-danger" style="font-size: 4rem;"></i>
+                <h3 class="mt-4 fw-bold">Sign Out</h3>
+                <p class="text-secondary mb-4">Are you sure you want to sign out of your account?</p>
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger btn-lg btn-modern">Yes, Log Out</button>
+                        <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-lg btn-modern">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

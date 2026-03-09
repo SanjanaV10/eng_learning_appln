@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">AI Conversation Coach</h4>
+                <div class="spinner-grow spinner-grow-sm text-light d-none" id="ai-thinking" role="status">
+                    <span class="visually-hidden">Thinking...</span>
+                </div>
+            </div>
+            <div class="card-body" style="height: 400px; overflow-y: auto;" id="chat-box">
+                <!-- Chat messages will appear here -->
+                <div class="alert alert-info py-2 mb-2">
+                    <strong>AI:</strong> Hello! Let's practice English. What would you like to talk about today?
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="input-group">
+                    <button class="btn btn-outline-danger" type="button" id="btn-record">
+                        🎙️ Speak
+                    </button>
+                    <input type="text" class="form-control" id="user-input" placeholder="Type your message here...">
+                    <button class="btn btn-primary" type="button" id="btn-send">Send</button>
+                </div>
+                <div class="text-muted small mt-2 d-none" id="recording-status">Listening... Speak now.</div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4 border-warning d-none" id="correction-box">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Corrections & Feedback</h5>
+            </div>
+            <div class="card-body">
+                <p id="correction-text" class="mb-0"></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const chatBox = document.getElementById('chat-box');
+    const userInput = document.getElementById('user-input');
+    const btnSend = document.getElementById('btn-send');
+    const btnRecord = document.getElementById('btn-record');
+    const recordingStatus = document.getElementById('recording-status');
+    const aiThinking = document.getElementById('ai-thinking');
+    const correctionBox = document.getElementById('correction-box');
+    const correctionText = document.getElementById('correction-text');
+
+    // Speech Recognition Setup
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = function () {
+            btnRecord.classList.replace('btn-outline-danger', 'btn-danger');
+            recordingStatus.classList.remove('d-none');
+        };
+
+        recognition.onresult = function (event) {
+            const transcript = event.results[0][0].transcript;
+            userInput.value = transcript;
+            sendMessage();
+        };
+
+        recognition.onerror = function (event) {
+            console.error(event.error);
+            resetRecordButton();
+        };
+
+        recognition.onend = function () {
+            resetRecordButton();
+        };
+    } else {
+        btnRecord.disabled = true;
+        btnRecord.title = "Speech recognition is not supported in this browser.";
+    }
+
+    function resetRecordButton() {
+        btnRecord.classList.replace('btn-danger', 'btn-outline-danger');
+        recordingStatus.classList.add('d-none');
+    }
+
+    btnRecord.addEventListener('click', () => {
+        if (recognition) {
+            recognition.start();
+        }
+    });
+
+    // Text to Speech
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // Chat functionality
+    function addMessage(sender, text, isAi = false) {
+        const div = document.createElement('div');
+        div.className = `alert py-2 mb-2 ${isAi ? 'alert-info' : 'alert-secondary text-end'}`;
+        div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        addMessage('You', message);
+        userInput.value = '';
+        aiThinking.classList.remove('d-none');
+
+        try {
+            const response = await fetch('/api/chat/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ message: message })
+            });
+
+            const data = await response.json();
+            aiThinking.classList.add('d-none');
+
+            if (data.response) {
+                addMessage('AI', data.response, true);
+                speak(data.response);
+            }
+            if (data.corrections && data.corrections !== "None" && data.corrections.toLowerCase() !== "no corrections needed.") {
+                correctionBox.classList.remove('d-none');
+                correctionText.innerText = data.corrections;
+                // Speak the correction after a short delay so it doesn't overlap immediately
+                setTimeout(() => {
+                    speak("I have a correction. " + data.corrections);
+                }, 1500);
+            } else {
+                correctionBox.classList.add('d-none');
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            aiThinking.classList.add('d-none');
+            addMessage('System', 'Error communicating with server.', true);
+        }
+    }
+
+    btnSend.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+</script>
+{% endblock %}
