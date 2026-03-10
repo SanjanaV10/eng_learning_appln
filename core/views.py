@@ -3,7 +3,8 @@ from django.http import JsonResponse
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
-from .models import UserInteraction
+from .models import UserInteraction, Question, UserProgress, SearchHistory
+import random
 import json
 import os
 import openai
@@ -126,6 +127,126 @@ class HeuristicCorrector:
         
         return " | ".join(corrections)
 
+def generate_contextual_content(user, category):
+    """
+    Generates educational content based on the user's recent interactions.
+    """
+    recent_interactions = UserInteraction.objects.filter(user=user).order_by('-timestamp')[:5]
+    if not recent_interactions:
+        return None
+
+    context_text = "\n".join([f"User: {i.user_text}\nAI: {i.ai_response}" for i in recent_interactions])
+    
+    prompt = f"""
+    Based on the following English learning conversation, generate a set of educational items for the category: {category}.
+    
+    Conversation context:
+    {context_text}
+    
+    Return ONLY a valid JSON object with a key "items" which is a list. Each object in "items" must match the schema for {category}:
+    
+    - For QUIZ: {{"question": "...", "options": ["...", "...", "...", "..."], "correct": index_of_correct_option, "explanation": "..."}}
+    - For VOCAB: {{"word": "...", "meaning": "..."}}
+    - For BLANKS: {{"text": "Sentence with ___ blank", "blank": "the_word", "options": ["...", "...", "...", "..."]}}
+    - For MEMORY: {{"id": unique_int, "type": "A", "text": "Word"}}, {{"id": same_unique_int, "type": "B", "text": "Synonym/Definition"}} (Generate 6 pairs i.e 12 objects total for memory)
+    """
+
+    try:
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a helpful English teacher. Return ONLY JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            model="openai/gpt-4o-mini",
+
+            response_format={"type": "json_object"}
+        )
+        
+        result_data = json.loads(response.choices[0].message.content)
+        items = result_data.get('items', [])
+        
+        if not isinstance(items, list):
+            return None
+            
+        generated_questions = []
+        for item in items:
+            q = Question.objects.create(
+                category=category,
+                content=item,
+                is_static=False
+            )
+            generated_questions.append(q)
+        return generated_questions
+    except Exception as e:
+        print(f"DEBUG: Generation Error: {str(e)}")
+        return None
+
+@login_required
+def get_quiz_data(request):
+    seen_ids = UserProgress.objects.filter(user=request.user).values_list('question_id', flat=True)
+    unseen = Question.objects.filter(category='QUIZ').exclude(id__in=seen_ids)
+    has_conversation = UserInteraction.objects.filter(user=request.user).exists()
+    
+    if unseen.count() < 5 and has_conversation:
+        generate_contextual_content(request.user, 'QUIZ')
+        unseen = Question.objects.filter(category='QUIZ').exclude(id__in=seen_ids)
+        
+    selected = list(unseen.order_by('?')[:5])
+    if not selected:
+        # Reset seen and pick static questions
+        seen_ids_list = list(seen_ids)
+        selected = list(Question.objects.filter(category='QUIZ', is_static=True).order_by('?')[:5])
+        
+    if not selected:
+        return JsonResponse({'error': 'No questions available'}, status=404)
+        
+    data = []
+    for q in selected:
+        item = dict(q.content)
+        item['id'] = q.id
+        data.append(item)
+    return JsonResponse({'questions': data, 'has_conversation': has_conversation})
+
+@login_required
+def get_game_data(request, category):
+    cat_map = {'vocab': 'VOCAB', 'blanks': 'BLANKS', 'memory': 'MEMORY'}
+    db_cat = cat_map.get(category)
+    if not db_cat:
+        return JsonResponse({'error': 'Invalid category'}, status=400)
+        
+    seen_ids = UserProgress.objects.filter(user=request.user).values_list('question_id', flat=True)
+    unseen = Question.objects.filter(category=db_cat).exclude(id__in=seen_ids)
+    has_conversation = UserInteraction.objects.filter(user=request.user).exists()
+
+    threshold = 12 if db_cat == 'MEMORY' else 5
+    if unseen.count() < threshold and has_conversation:
+        generate_contextual_content(request.user, db_cat)
+        unseen = Question.objects.filter(category=db_cat).exclude(id__in=seen_ids)
+        
+    selected = list(unseen.order_by('?')[:threshold])
+    if not selected:
+        # Fallback: use all static questions for this category
+        selected = list(Question.objects.filter(category=db_cat, is_static=True).order_by('?')[:threshold])
+        
+    if not selected:
+        return JsonResponse({'error': 'No data available'}, status=404)
+
+    data = [dict(q.content, id=q.id) for q in selected]
+    return JsonResponse({'items': data, 'has_conversation': has_conversation})
+
+@login_required
+def mark_question_seen(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            question_id = data.get('question_id')
+            question = Question.objects.get(id=question_id)
+            UserProgress.objects.get_or_create(user=request.user, question=question)
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'error': 'POST required'}, status=405)
+
 def api_chat(request):
     if request.method == 'POST':
         try:
@@ -145,15 +266,21 @@ def api_chat(request):
                             "You are a strict but encouraging AI English tutor and translator. "
                             "Instructions:\n"
                             "1. If the user's message is in a language OTHER THAN English (e.g., Hindi, Spanish, etc.), you MUST detect the language.\n"
-                            "2. If translation is needed, provide it in the 'translation' field as: 'I noticed you're speaking in [Language]. In English, that is: [Full English Translation]'.\n"
+                            "2. If translation is needed, provide it in the 'translation' field as: 'I noticed you are speaking in [Language]. In English, that is: [Full English Translation]'.\n"
                             "3. Then, respond naturally in English to keep the conversation going.\n"
-                            "4. If the user attempts English but has grammar, spelling, or syntax mistakes, you MUST provide a detailed correction in the 'corrections' field.\n"
-                            "5. If the message is already perfect English, set translation and corrections to 'None'.\n\n"
+                            "4. If the user asks for questions and answers (e.g., current affairs, GK, trivia), format them STRICTLY line by line like:\n"
+                            "   Q1: [Question]\n"
+                            "   A1: [Answer]\n"
+                            "   Q2: [Question]\n"
+                            "   A2: [Answer]\n"
+                            "   ... and so on. NEVER write them as a paragraph.\n"
+                            "5. If the user attempts English but has grammar, spelling, or syntax mistakes, you MUST provide a detailed correction in the 'corrections' field.\n"
+                            "6. If the message is already perfect English, set translation and corrections to 'None'.\n\n"
                             "Return ONLY a valid JSON object matching this schema:\n"
                             "{\n"
-                            "  \"translation\": \"[The learning-focused translation hint]\",\n"
-                            "  \"response\": \"Your conversational reply in English.\",\n"
-                            "  \"corrections\": \"Textual feedback on the user's English usage.\"\n"
+                            "  \"translation\": \"[The learning-focused translation hint or None]\",\n"
+                            "  \"response\": \"Your reply. For Q&A, use the Q1:/A1: format line by line.\",\n"
+                            "  \"corrections\": \"Textual feedback on the user's English usage or None.\"\n"
                             "}"
                         )
                     },
@@ -197,12 +324,46 @@ def api_chat(request):
         except Exception as save_error:
             print(f"DEBUG: Failed to save interaction: {str(save_error)}")
 
+        # Save to SearchHistory for logged-in users
+        try:
+            if request.user.is_authenticated:
+                SearchHistory.objects.create(
+                    user=request.user,
+                    prompt=user_message,
+                    ai_response=bot_response
+                )
+        except Exception as hist_error:
+            print(f"DEBUG: Failed to save search history: {str(hist_error)}")
+
         return JsonResponse({
             'response': bot_response,
             'corrections': corrections,
             'translation': translation
         })
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+@login_required
+def search_history(request):
+    history = SearchHistory.objects.filter(user=request.user)[:50]
+    return render(request, 'search_history.html', {'history': history})
+
+@login_required
+def delete_history_item(request, item_id):
+    if request.method == 'POST':
+        try:
+            item = SearchHistory.objects.get(id=item_id, user=request.user)
+            item.delete()
+            return JsonResponse({'status': 'deleted'})
+        except SearchHistory.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)
+    return JsonResponse({'error': 'POST required'}, status=405)
+
+@login_required
+def clear_history(request):
+    if request.method == 'POST':
+        SearchHistory.objects.filter(user=request.user).delete()
+        return JsonResponse({'status': 'cleared'})
+    return JsonResponse({'error': 'POST required'}, status=405)
 
 def signup_view(request):
     if request.method == 'POST':

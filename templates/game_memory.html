@@ -3,20 +3,23 @@
 {% block content %}
 <div class="row justify-content-center pb-5">
     <div class="col-md-10 text-center">
-        <h2 class="display-5 fw-bold text-primary mb-3">Memory Match: Grammar edition</h2>
-        <p class="lead text-secondary mb-5">Flip the cards and match the English word to its correct synonym or
-            definition.</p>
+        <h2 class="display-5 fw-bold text-primary mb-3">Memory Match: Grammar Edition</h2>
+        <p class="lead text-secondary mb-5" id="game-subtitle">Loading your personalised memory game...</p>
 
         <div class="card glass-card shadow-lg border-0 text-start mx-auto p-4" style="max-width: 900px;">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="fw-bold m-0 text-dark">Moves: <span id="moves" class="text-primary">0</span></h5>
-                <h5 class="fw-bold m-0 text-dark">Matches: <span id="matches" class="text-success">0</span> / 6</h5>
+                <h5 class="fw-bold m-0 text-dark">Matches: <span id="matches" class="text-success">0</span> / <span
+                        id="total-pairs">6</span></h5>
                 <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="initGame()">Restart
                     Game</button>
             </div>
 
             <div class="memory-grid gap-3" id="memory-grid">
-                <!-- Cards injected here -->
+                <div class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3 text-muted">Generating memory cards...</p>
+                </div>
             </div>
 
             <div id="win-message" class="text-center mt-5 d-none animation-fade-in">
@@ -100,139 +103,97 @@
 
 {% block extra_js %}
 <script>
-    // Pool of matching pairs. We randomly select 6 for each game.
-    const allPairs = [
-        { id: 1, type: "A", text: "Abundant" }, { id: 1, type: "B", text: "Plentiful" },
-        { id: 2, type: "A", text: "Eager" }, { id: 2, type: "B", text: "Keen / Enthusiastic" },
-        { id: 3, type: "A", text: "Diligent" }, { id: 3, type: "B", text: "Hard-working" },
-        { id: 4, type: "A", text: "Obsolete" }, { id: 4, type: "B", text: "Out of date" },
-        { id: 5, type: "A", text: "Vast" }, { id: 5, type: "B", text: "Very large" },
-        { id: 6, type: "A", text: "To conceal" }, { id: 6, type: "B", text: "To hide" },
-        { id: 7, type: "A", text: "To commence" }, { id: 7, type: "B", text: "To begin" },
-        { id: 8, type: "A", text: "Deteriorate" }, { id: 8, type: "B", text: "Become worse" },
-        { id: 9, type: "A", text: "Inevitable" }, { id: 9, type: "B", text: "Unavoidable" },
-        { id: 10, type: "A", text: "Lucrative" }, { id: 10, type: "B", text: "Profitable" },
-        { id: 11, type: "A", text: "Enigmatic" }, { id: 11, type: "B", text: "Mysterious" },
-        { id: 12, type: "A", text: "Tenacious" }, { id: 12, type: "B", text: "Persistent" },
-        { id: 13, type: "A", text: "Serene" }, { id: 13, type: "B", text: "Peaceful" },
-        { id: 14, type: "A", text: "Authentic" }, { id: 14, type: "B", text: "Genuine" },
-        { id: 15, type: "A", text: "Benevolent" }, { id: 15, type: "B", text: "Kind-hearted" },
-        { id: 16, type: "A", text: "Capricious" }, { id: 16, type: "B", text: "Fickle" },
-        { id: 17, type: "A", text: "Eloquent" }, { id: 17, type: "B", text: "Articulate" },
-        { id: 18, type: "A", text: "Pragmatic" }, { id: 18, type: "B", text: "Realistic" },
-        { id: 19, type: "A", text: "Resilient" }, { id: 19, type: "B", text: "Tough" },
-        { id: 20, type: "A", text: "Zealous" }, { id: 20, type: "B", text: "Fervent" },
-        { id: 21, type: "A", text: "Acquire" }, { id: 21, type: "B", text: "Gain / Obtain" },
-        { id: 22, type: "A", text: "Baffle" }, { id: 22, type: "B", text: "Confuse / Puzzle" },
-        { id: 23, type: "A", text: "Candid" }, { id: 23, type: "B", text: "Honest / Frank" },
-        { id: 24, type: "A", text: "Dwell" }, { id: 24, type: "B", text: "Live / Reside" },
-        { id: 25, type: "A", text: "Elude" }, { id: 25, type: "B", text: "Escape / Avoid" },
-        { id: 26, type: "A", text: "Falter" }, { id: 26, type: "B", text: "Hesitate / Waver" },
-        { id: 27, type: "A", text: "Gaze" }, { id: 27, type: "B", text: "Stare / Look" },
-        { id: 28, type: "A", text: "Hinder" }, { id: 28, type: "B", text: "Obstruct / Block" },
-        { id: 29, type: "A", text: "Incite" }, { id: 29, type: "B", text: "Provoke / Stir up" },
-        { id: 30, type: "A", text: "Jeer" }, { id: 30, type: "B", text: "Mock / Ridicule" },
-        { id: 31, type: "A", text: "Kindle" }, { id: 31, type: "B", text: "Ignite / Light" },
-        { id: 32, type: "A", text: "Linger" }, { id: 32, type: "B", text: "Stay / Wait" },
-        { id: 33, type: "A", text: "Mingle" }, { id: 33, type: "B", text: "Mix / Blend" },
-        { id: 34, type: "A", text: "Nurture" }, { id: 34, type: "B", text: "Care for / Foster" },
-        { id: 35, type: "A", text: "Observe" }, { id: 35, type: "B", text: "Watch / Note" },
-        { id: 36, type: "A", text: "Ponder" }, { id: 36, type: "B", text: "Think / Consider" },
-        { id: 37, type: "A", text: "Quell" }, { id: 37, type: "B", text: "Suppress / Crush" },
-        { id: 38, type: "A", text: "Relinquish" }, { id: 38, type: "B", text: "Give up / Resign" },
-        { id: 39, type: "A", text: "Savor" }, { id: 39, type: "B", text: "Enjoy / Taste" },
-        { id: 40, type: "A", text: "Thrive" }, { id: 40, type: "B", text: "Flourish / Grow" }
-    ];
-
     let grid = document.getElementById("memory-grid");
     let movesDisplay = document.getElementById("moves");
     let matchesDisplay = document.getElementById("matches");
+    let totalPairsDisplay = document.getElementById("total-pairs");
     let winMessage = document.getElementById("win-message");
     let finalMoves = document.getElementById("final-moves");
+    let subtitle = document.getElementById("game-subtitle");
 
-    let hasFlippedCard = false;
-    let lockBoard = false;
+    let hasFlippedCard = false, lockBoard = false;
     let firstCard, secondCard;
-    let moves = 0;
-    let matches = 0;
+    let moves = 0, matches = 0, totalPairs = 6;
+    let seenIds = [];
 
-    function shuffleOptions(array) {
-        let currentIndex = array.length, randomIndex;
-        while (currentIndex != 0) {
-            randomIndex = Math.floor(Math.random() * currentIndex);
-            currentIndex--;
-            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
         }
         return array;
     }
 
-    function initGame() {
-        grid.innerHTML = "";
-        winMessage.classList.add('d-none');
-        moves = 0;
-        matches = 0;
-        hasFlippedCard = false;
-        lockBoard = false;
-        firstCard = null;
-        secondCard = null;
+    function getCookie(name) {
+        let value = null;
+        document.cookie.split(';').forEach(c => {
+            const t = c.trim();
+            if (t.startsWith(name + '=')) value = decodeURIComponent(t.substring(name.length + 1));
+        });
+        return value;
+    }
 
+    async function markSeen(questionId) {
+        try {
+            await fetch('/api/mark-seen/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ question_id: questionId })
+            });
+        } catch (e) { }
+    }
+
+    async function initGame() {
+        grid.innerHTML = '<div class="text-center p-5" style="grid-column: 1/-1;"><div class="spinner-border text-primary" role="status"></div><p class="mt-3 text-muted">Generating memory cards...</p></div>';
+        winMessage.classList.add('d-none');
+        moves = 0; matches = 0; hasFlippedCard = false; lockBoard = false;
+        firstCard = null; secondCard = null; seenIds = [];
         movesDisplay.innerText = moves;
         matchesDisplay.innerText = matches;
 
-        // Get used IDs from sessionStorage
-        let askedIds = JSON.parse(sessionStorage.getItem('memory_asked_ids') || '[]');
+        let gameCards = [];
+        try {
+            const resp = await fetch('/api/get-game/memory/');
+            if (!resp.ok) throw new Error('No data');
+            const data = await resp.json();
+            const items = data.items || [];
+            seenIds = items.map(i => i.id).filter((v, i, a) => a.indexOf(v) === i);
 
-        // Filter out unique IDs from allPairs (each ID has 2 cards, so we just check the ID)
-        const uniqueIds = Array.from(new Set(allPairs.map(p => p.id)));
-        let availableIds = uniqueIds.filter(id => !askedIds.includes(id));
+            subtitle.textContent = data.has_conversation
+                ? 'Cards generated from your AI conversation!'
+                : 'Flip the cards and match the English word to its correct synonym or definition.';
 
-        if (availableIds.length < 6) {
-            // Reset if we don't have enough left
-            askedIds = [];
-            availableIds = uniqueIds;
+            // Group items by their pair id
+            // Each pair has "id", "type" A & B
+            gameCards = items;
+        } catch (e) {
+            grid.innerHTML = '<p class="text-center text-muted p-5">Error loading game. Please try again.</p>';
+            return;
         }
 
-        // Pick 6 random unique IDs from available
-        let selectedIds = shuffleOptions([...availableIds]).slice(0, 6);
+        // Determine total unique pairs from A cards
+        const pairCount = gameCards.filter(c => c.type === 'A').length;
+        totalPairs = pairCount;
+        totalPairsDisplay.innerText = pairCount;
 
-        // Save back to session storage
-        sessionStorage.setItem('memory_asked_ids', JSON.stringify([...askedIds, ...selectedIds]));
+        gameCards = shuffle(gameCards);
+        grid.innerHTML = '';
 
-        let gameCards = [];
-        selectedIds.forEach(id => {
-            gameCards.push(allPairs.find(p => p.id === id && p.type === "A"));
-            gameCards.push(allPairs.find(p => p.id === id && p.type === "B"));
-        });
-
-        gameCards = shuffleOptions(gameCards);
-
-        gameCards.forEach((cardData, index) => {
+        gameCards.forEach(cardData => {
             let cardElement = document.createElement("div");
             cardElement.classList.add("memory-card");
             cardElement.dataset.name = cardData.id;
-
-            cardElement.innerHTML = `
-                <div class="card-front">${cardData.text}</div>
-                <div class="card-back"><i class="bi bi-question-circle"></i></div>
-            `;
-
+            cardElement.dataset.qid = cardData.id;
+            cardElement.innerHTML = `<div class="card-front">${cardData.text}</div><div class="card-back"><i class="bi bi-question-circle"></i></div>`;
             cardElement.addEventListener("click", flipCard);
             grid.appendChild(cardElement);
         });
     }
 
     function flipCard() {
-        if (lockBoard) return;
-        if (this === firstCard) return;
-
+        if (lockBoard || this === firstCard) return;
         this.classList.add("flipped");
-
-        if (!hasFlippedCard) {
-            hasFlippedCard = true;
-            firstCard = this;
-            return;
-        }
-
+        if (!hasFlippedCard) { hasFlippedCard = true; firstCard = this; return; }
         secondCard = this;
         checkForMatch();
     }
@@ -247,18 +208,17 @@
     function disableCards() {
         firstCard.removeEventListener("click", flipCard);
         secondCard.removeEventListener("click", flipCard);
-
         firstCard.style.opacity = '0.7';
         secondCard.style.opacity = '0.7';
-
         matches++;
         matchesDisplay.innerText = matches;
-
-        if (matches === 6) {
+        if (matches === totalPairs) {
             setTimeout(() => {
                 grid.innerHTML = "";
                 winMessage.classList.remove("d-none");
                 finalMoves.innerText = moves;
+                // Mark all seen
+                seenIds.forEach(id => { if (id) markSeen(id); });
             }, 800);
         }
         resetBoard();
@@ -273,12 +233,8 @@
         }, 1200);
     }
 
-    function resetBoard() {
-        [hasFlippedCard, lockBoard] = [false, false];
-        [firstCard, secondCard] = [null, null];
-    }
+    function resetBoard() { [hasFlippedCard, lockBoard] = [false, false];[firstCard, secondCard] = [null, null]; }
 
-    // Start
     initGame();
 </script>
 {% endblock %}

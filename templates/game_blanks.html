@@ -4,24 +4,20 @@
 <div class="row justify-content-center">
     <div class="col-md-8 text-center text-white bg-success p-5 rounded shadow">
         <h2>Fill in the Blanks</h2>
-        <p class="lead">Complete the sentence with the correct grammar or word.</p>
+        <p class="lead" id="game-subtitle">Loading your personalised game...</p>
 
         <div class="card mt-4 text-dark text-start shadow-sm mx-auto" style="max-width: 600px;">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <span class="fs-4 fw-bold">Score: <span id="score">0</span></span>
-                    <span class="fs-5 text-muted">Question: <span id="q-num">1</span>/5</span>
+                    <span class="fs-5 text-muted">Question: <span id="q-num">1</span>/<span id="total-q">5</span></span>
                 </div>
 
-                <h4 class="text-center py-4 bg-light rounded px-3" style="line-height: 1.6;" id="sentence-display">
-                    This is a sample sentence with a <span
-                        class="bg-warning px-4 py-1 text-transparent rounded border-bottom border-dark border-2">___</span>
-                    blank.
+                <h4 class="text-center py-4 bg-light rounded px-3" style="line-height:1.6;" id="sentence-display">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span> Loading...
                 </h4>
 
-                <div class="d-grid gap-2 mt-4" id="options-container">
-                    <!-- Options will be here -->
-                </div>
+                <div class="d-grid gap-2 mt-4" id="options-container"></div>
 
                 <div id="feedback" class="mt-4 text-center fs-5 d-none"></div>
                 <div class="text-center mt-3 d-none" id="next-btn-container">
@@ -35,219 +31,6 @@
 
 {% block extra_js %}
 <script>
-    const allQuestionsList = [
-        {
-            text: "The cat jumped ___ the wall.",
-            blank: "over",
-            options: ["over", "under", "through", "between"]
-        },
-        {
-            text: "I have been living here ___ 2015.",
-            blank: "since",
-            options: ["for", "since", "from", "in"]
-        },
-        {
-            text: "She speaks English very ___.",
-            blank: "well",
-            options: ["good", "well", "better", "best"]
-        },
-        {
-            text: "If I ___ you, I would study harder.",
-            blank: "were",
-            options: ["was", "am", "were", "be"]
-        },
-        {
-            text: "They are looking forward to ___ you.",
-            blank: "seeing",
-            options: ["see", "saw", "seeing", "seen"]
-        },
-        {
-            text: "He ___ breakfast when the phone rang.",
-            blank: "was having",
-            options: ["had", "has", "was having", "is having"]
-        },
-        {
-            text: "By this time tomorrow, we ___ arrived in Tokyo.",
-            blank: "will have",
-            options: ["will", "would have", "will have", "have"]
-        },
-        {
-            text: "Neither the architect nor the builders ___ aware of the issue.",
-            blank: "were",
-            options: ["was", "were", "is", "has been"]
-        },
-        {
-            text: "I am used to ___ early.",
-            blank: "waking",
-            options: ["waking", "wake", "woke", "waken"]
-        },
-        {
-            text: "They ___ complete the assignment by Friday.",
-            blank: "must",
-            options: ["must", "have", "ought", "need"]
-        },
-        {
-            text: "The book ___ I borrowed is excellent.",
-            blank: "which",
-            options: ["who", "whom", "which", "whose"]
-        },
-        {
-            text: "Do you mind ___ the window?",
-            blank: "opening",
-            options: ["open", "opening", "opened", "opens"]
-        },
-        {
-            text: "She asked me where ___ going.",
-            blank: "I was",
-            options: ["was I", "I am", "am I", "I was"]
-        },
-        {
-            text: "We ___ to the cinema yesterday.",
-            blank: "went",
-            options: ["go", "went", "have gone", "going"]
-        },
-        {
-            text: "I have known her ___ we were children.",
-            blank: "since",
-            options: ["for", "since", "when", "from"]
-        },
-        {
-            text: "If he ___, I will let you know.",
-            blank: "calls",
-            options: ["calls", "will call", "called", "call"]
-        },
-        {
-            text: "I'm looking forward to ___ you.",
-            blank: "seeing",
-            options: ["see", "seeing", "saw", "seen"]
-        },
-        {
-            text: "He didn't ___ to work today.",
-            blank: "go",
-            options: ["went", "goes", "going", "go"]
-        },
-        {
-            text: "By the time we arrived, the train ___.",
-            blank: "had left",
-            options: ["left", "has left", "had left", "was left"]
-        },
-        {
-            text: "I wish I ___ speaking French.",
-            blank: "could",
-            options: ["can", "can be", "could", "could be"]
-        },
-        {
-            text: "He is the person ___ fixed my computer.",
-            blank: "who",
-            options: ["who", "which", "whose", "whom"]
-        },
-        {
-            text: "I haven't seen him ___ last year.",
-            blank: "since",
-            options: ["for", "since", "from", "at"]
-        },
-        {
-            text: "Would you like ___ cup of tea?",
-            blank: "another",
-            options: ["other", "another", "others", "each"]
-        },
-        {
-            text: "She works ___ an engineer.",
-            blank: "as",
-            options: ["like", "as", "how", "with"]
-        },
-        {
-            text: "The news ___ very surprising.",
-            blank: "was",
-            options: ["was", "were", "been", "being"]
-        },
-        {
-            text: "I am looking forward to ___ you again.",
-            blank: "meeting",
-            options: ["meet", "meeting", "met", "to meet"]
-        },
-        {
-            text: "He ___ dinner when I arrived.",
-            blank: "was cooking",
-            options: ["cooks", "cooked", "was cooking", "has cooked"]
-        },
-        {
-            text: "They have ___ friends in this city.",
-            blank: "a few",
-            options: ["a little", "a few", "few", "little"]
-        },
-        {
-            text: "I ___ to the gym three times a week.",
-            blank: "go",
-            options: ["go", "goes", "going", "gone"]
-        },
-        {
-            text: "This is the car ___ my father bought.",
-            blank: "that",
-            options: ["who", "which", "that", "whose"]
-        },
-        {
-            text: "We ___ have finished the work by 5 PM.",
-            blank: "will",
-            options: ["will", "shall", "would", "must"]
-        },
-        {
-            text: "He doesn't have ___ money.",
-            blank: "any",
-            options: ["some", "any", "no", "much"]
-        },
-        {
-            text: "She speaks English ___ than me.",
-            blank: "better",
-            options: ["good", "well", "better", "best"]
-        },
-        {
-            text: "I ___ my keys. Have you seen them?",
-            blank: "have lost",
-            options: ["lost", "have lost", "had lost", "was losing"]
-        },
-        {
-            text: "If I ___ time, I will help you.",
-            blank: "have",
-            options: ["have", "had", "will have", "would have"]
-        },
-        {
-            text: "He ___ out for a walk every evening.",
-            blank: "goes",
-            options: ["go", "goes", "going", "gone"]
-        },
-        {
-            text: "The cake ___ by my mother.",
-            blank: "was made",
-            options: ["made", "was made", "is making", "has made"]
-        },
-        {
-            text: "Do you know ___ she is?",
-            blank: "where",
-            options: ["how", "when", "where", "why"]
-        },
-        {
-            text: "I have been waiting ___ an hour.",
-            blank: "for",
-            options: ["since", "for", "from", "at"]
-        },
-        {
-            text: "This is the best movie I have ___ seen.",
-            blank: "ever",
-            options: ["never", "ever", "yet", "still"]
-        }
-    ];
-
-    function shuffleOptions(array) {
-        let currentIndex = array.length, randomIndex;
-        while (currentIndex != 0) {
-            randomIndex = Math.floor(Math.random() * currentIndex);
-            currentIndex--;
-            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-        }
-        return array;
-    }
-
     let currentQ = 0;
     let score = 0;
     let questions = [];
@@ -256,67 +39,86 @@
     const optionsContainer = document.getElementById('options-container');
     const scoreDisplay = document.getElementById('score');
     const qNumDisplay = document.getElementById('q-num');
+    const totalQDisplay = document.getElementById('total-q');
     const feedback = document.getElementById('feedback');
     const nextBtnContainer = document.getElementById('next-btn-container');
     const btnNext = document.getElementById('btn-next');
+    const subtitle = document.getElementById('game-subtitle');
 
-    // Shuffle array utility
     function shuffle(array) {
-        return array.sort(() => Math.random() - 0.5);
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
     }
 
-    // Always pick 5 random questions
-    function initNewGame() {
-        let askedIndices = JSON.parse(sessionStorage.getItem('blanks_asked_indices') || '[]');
+    function getCookie(name) {
+        let value = null;
+        document.cookie.split(';').forEach(c => {
+            const t = c.trim();
+            if (t.startsWith(name + '=')) value = decodeURIComponent(t.substring(name.length + 1));
+        });
+        return value;
+    }
 
-        let availableQuestions = allQuestionsList.map((q, idx) => ({ ...q, originalIndex: idx }))
-            .filter(q => !askedIndices.includes(q.originalIndex));
+    async function markSeen(questionId) {
+        try {
+            await fetch('/api/mark-seen/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ question_id: questionId })
+            });
+        } catch (e) { }
+    }
 
-        if (availableQuestions.length < 5) {
-            // Not enough left, reset
-            askedIndices = [];
-            availableQuestions = allQuestionsList.map((q, idx) => ({ ...q, originalIndex: idx }));
+    async function initNewGame() {
+        sentenceDisplay.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span> Loading...';
+        optionsContainer.innerHTML = '';
+
+        try {
+            const resp = await fetch('/api/get-game/blanks/');
+            if (!resp.ok) throw new Error('No data');
+            const data = await resp.json();
+            questions = shuffle(data.items || []);
+
+            subtitle.textContent = data.has_conversation
+                ? 'Sentences generated from your AI conversation!'
+                : 'Complete the sentence with the correct grammar or word.';
+
+        } catch (e) {
+            sentenceDisplay.innerText = 'Error loading game. Please try again.';
+            return;
         }
-
-        const selectedQuestions = shuffleOptions(availableQuestions).slice(0, 5);
-
-        const newlyAskedIndices = selectedQuestions.map(q => q.originalIndex);
-        sessionStorage.setItem('blanks_asked_indices', JSON.stringify([...askedIndices, ...newlyAskedIndices]));
-
-        questions = selectedQuestions;
 
         currentQ = 0;
         score = 0;
-        scoreDisplay.innerText = "0";
+        scoreDisplay.innerText = '0';
+        totalQDisplay.innerText = questions.length;
         loadQuestion();
     }
 
     function loadQuestion() {
         if (currentQ >= questions.length) {
-            sentenceDisplay.innerHTML = "Level Completed!";
+            sentenceDisplay.innerHTML = 'Level Completed!';
             optionsContainer.innerHTML = `<h4 class="text-center text-success mt-3 mb-4">Final Score: ${score}/${questions.length * 10}</h4>`;
             feedback.classList.add('d-none');
-            nextBtnContainer.innerHTML = `<button class="btn btn-primary btn-modern btn-lg px-5 mt-2" onclick="location.reload()">Play Next Level</button>`;
+            nextBtnContainer.innerHTML = `<button class="btn btn-primary btn-modern btn-lg px-5 mt-2" onclick="initNewGame()">Play Next Level</button>`;
             nextBtnContainer.classList.remove('d-none');
             return;
         }
 
         const q = questions[currentQ];
-        // Render sentence with blank (using q.text since we renamed it from q.sentence)
         const parts = q.text.split('___');
-        sentenceDisplay.innerHTML = `${parts[0]} <span class="bg-warning px-4 py-1 ms-1 me-1 rounded border-bottom border-dark border-2" style="color: transparent;">___</span> ${parts[1] || ''}`;
-
+        sentenceDisplay.innerHTML = `${parts[0]} <span class="bg-warning px-4 py-1 ms-1 me-1 rounded border-bottom border-dark border-2" style="color:transparent;">___</span> ${parts[1] || ''}`;
         qNumDisplay.innerText = currentQ + 1;
 
-        const shuffledOptions = shuffleOptions([...q.options]);
-
         optionsContainer.innerHTML = '';
-        shuffledOptions.forEach(opt => {
+        shuffle([...q.options]).forEach(opt => {
             const btn = document.createElement('button');
             btn.className = 'btn btn-outline-success option-btn p-3 fw-medium';
             btn.innerText = opt;
-            // pass q.blank instead of q.correct and q.text instead of q.sentence
-            btn.onclick = () => checkAnswer(opt, q.blank, btn, q.text);
+            btn.onclick = () => checkAnswer(opt, q.blank, btn, q.text, q.id);
             optionsContainer.appendChild(btn);
         });
 
@@ -324,10 +126,8 @@
         nextBtnContainer.classList.add('d-none');
     }
 
-    function checkAnswer(selectedOpt, correctOpt, selectedBtn, fullSentence) {
-        // Disable all buttons and highlight correct one
-        const btns = optionsContainer.querySelectorAll('.option-btn');
-        btns.forEach(b => {
+    function checkAnswer(selectedOpt, correctOpt, selectedBtn, fullSentence, questionId) {
+        document.querySelectorAll('.option-btn').forEach(b => {
             b.disabled = true;
             if (b.innerText === correctOpt) {
                 b.classList.replace('btn-outline-success', 'btn-success');
@@ -335,10 +135,8 @@
             }
         });
 
-        // Fill the blank
         const parts = fullSentence.split('___');
         const isCorrect = selectedOpt === correctOpt;
-
         sentenceDisplay.innerHTML = `${parts[0]} <span class="bg-${isCorrect ? 'success' : 'danger'} text-white px-3 py-1 ms-1 me-1 rounded fw-bold">${selectedOpt}</span> ${parts[1] || ''}`;
 
         feedback.classList.remove('d-none');
@@ -353,16 +151,12 @@
             feedback.innerHTML = '<strong><i class="bi bi-x-circle-fill"></i> Oops!</strong> The correct word is: <em>' + correctOpt + '</em>';
             feedback.className = 'mt-4 p-3 rounded bg-danger bg-opacity-10 border border-danger text-danger fw-bold';
         }
-
         nextBtnContainer.classList.remove('d-none');
+        if (questionId) markSeen(questionId);
     }
 
-    btnNext.addEventListener('click', () => {
-        currentQ++;
-        loadQuestion();
-    });
+    btnNext.addEventListener('click', () => { currentQ++; loadQuestion(); });
 
-    // Initialize game
     initNewGame();
 </script>
 {% endblock %}

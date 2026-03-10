@@ -83,79 +83,159 @@
     const recordText = document.getElementById('record-text');
 
     let isRecording = false;
+    let voiceModeActive = false; // Tracks if we are in the continuous hands-free ChatGPT-style loop
 
-    // Speech Recognition Setup
+    // Speech Recognition Setup: ChatGPT Style
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
+
     if (SpeechRecognition) {
         recognition = new SpeechRecognition();
+        // continuous=false means it listens for a single utterance and automatically
+        // stops when the user stops speaking.
         recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.lang = 'en-US';
 
         recognition.onstart = function () {
             isRecording = true;
+            userInput.value = '';
             btnRecord.classList.replace('btn-outline-danger', 'btn-danger');
-            recordIcon.innerText = "⏹️";
-            recordText.innerText = "Stop Speaking";
+            recordIcon.innerText = "🎧";
+            recordText.innerText = "Listening...";
             recordingStatus.classList.remove('d-none');
+            recordingStatus.innerText = "Listening... just speak naturally.";
+
+            // Cancel any ongoing AI speech so it doesn't talk over you
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
         };
 
         recognition.onresult = function (event) {
-            const transcript = event.results[0][0].transcript;
-            userInput.value = transcript;
-            sendMessage();
+            let tempString = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                tempString += event.results[i][0].transcript;
+            }
+            userInput.value = tempString;
         };
 
         recognition.onerror = function (event) {
-            console.error(event.error);
-            resetRecordButton();
+            if (event.error !== 'no-speech') {
+                console.error("Speech recognition error:", event.error);
+                recordingStatus.innerText = "Error: " + event.error;
+            }
         };
 
         recognition.onend = function () {
-            resetRecordButton();
+            // The browser automatically stopped because the user finished speaking.
+            if (isRecording) {
+                isRecording = false;
+                resetRecordButtonUI();
+
+                // Automatically send the message if they said something
+                if (userInput.value.trim().length > 0) {
+                    sendMessage();
+                } else if (voiceModeActive) {
+                    // They didn't say anything, but we are supposed to be in voice mode.
+                    // Keep listening.
+                    try { recognition.start(); } catch (e) { }
+                }
+            }
         };
     } else {
         btnRecord.disabled = true;
         btnRecord.title = "Speech recognition is not supported in this browser.";
     }
 
-    function resetRecordButton() {
-        isRecording = false;
+    function resetRecordButtonUI() {
         btnRecord.classList.replace('btn-danger', 'btn-outline-danger');
         recordIcon.innerText = "🎙️";
         recordText.innerText = "Start Speaking";
         recordingStatus.classList.add('d-none');
     }
 
+    function stopVoiceMode() {
+        voiceModeActive = false;
+        isRecording = false;
+        if (recognition) recognition.stop();
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        resetRecordButtonUI();
+    }
+
     btnRecord.addEventListener('click', () => {
-        if (recognition) {
-            if (isRecording) {
-                recognition.stop();
-            } else {
+        if (voiceModeActive) {
+            // If they click the button while voice mode is active, it means STOP EVERYTHING
+            stopVoiceMode();
+            if (userInput.value.trim().length > 0) {
+                sendMessage();
+            }
+        } else {
+            // Start ChatGPT-style voice mode loop
+            voiceModeActive = true;
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel(); // Interrupt AI if talking
+            try {
                 recognition.start();
+            } catch (e) {
+                console.error("Could not start:", e);
             }
         }
     });
 
-    // Text to Speech with logging
+    // Text to Speech with automatic queuing mechanism
+    let utteranceQueueCount = 0;
     function speak(text) {
         if ('speechSynthesis' in window) {
-            console.log("AI speaking:", text);
-            const utterance = new SpeechSynthesisUtterance(text);
+            let cleanText = text.replace(/\*/g, '')
+                .replace(/#/g, '')
+                .replace(/Q\d+:/gi, "")
+                .replace(/A\d+:/gi, "");
+            const utterance = new SpeechSynthesisUtterance(cleanText);
             utterance.lang = 'en-US';
             utterance.rate = 1.0;
+
+            utteranceQueueCount++;
+
+            utterance.onend = function () {
+                utteranceQueueCount--;
+                // If this was the last thing the AI had to say, and we are in voice mode,
+                // automatically turn the microphone back on!
+                if (utteranceQueueCount === 0 && voiceModeActive) {
+                    try { recognition.start(); } catch (e) { }
+                }
+            };
+
+            utterance.onerror = function () {
+                utteranceQueueCount--;
+            }
+
             window.speechSynthesis.speak(utterance);
-        } else {
-            console.warn("Speech synthesis not supported in this browser.");
         }
     }
 
+    // Format text: detect Q&A pattern and render line by line
+    function formatAIText(text) {
+        const lines = text.split('\n');
+        let html = '';
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) { html += '<br>'; return; }
+            if (/^Q\d+:/i.test(trimmed)) {
+                html += `<div style="color:#0056b3;font-weight:700;margin-top:6px;">${trimmed}</div>`;
+            } else if (/^A\d+:/i.test(trimmed)) {
+                html += `<div style="color:#155724;font-weight:600;padding-left:1rem;margin-bottom:4px;">${trimmed}</div>`;
+            } else {
+                html += `<div>${trimmed}</div>`;
+            }
+        });
+        return html;
+    }
+
     // Chat functionality
-    function addMessage(sender, text, isAi = false) {
+    function addMessage(sender, htmlContent, isAi = false) {
         const div = document.createElement('div');
-        div.className = `alert py-2 mb-2 ${isAi ? 'alert-info' : 'alert-secondary text-end'}`;
-        div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+        div.className = `alert py-2 mb-2 ${isAi ? 'alert-info text-start' : 'alert-secondary text-end'}`;
+        div.innerHTML = `<strong>${sender}:</strong> ${htmlContent}`;
         chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -189,7 +269,8 @@
                     messageHtml += `<div class="translation-hint text-dark"><i class="bi bi-translate"></i> <span>${data.translation}</span></div>`;
                 }
 
-                messageHtml += data.response;
+                // Format the response (handles Q&A line-by-line)
+                messageHtml += formatAIText(data.response);
 
                 // Show correction in Orange Box inside chat
                 if (data.corrections && data.corrections !== "None" && data.corrections.toLowerCase() !== "no corrections needed.") {
@@ -204,25 +285,24 @@
 
                 addMessage('AI', messageHtml, true);
 
-                // Speak response immediately
-                speak(data.response);
-
-                // Speak translation or correction with shorter, staggered delays
-                if (data.translation && data.translation !== "None") {
-                    setTimeout(() => speak(data.translation), 1000);
+                // Cancel any previous speech so sentences don't overlap
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
                 }
+
+                // Add to TTS queue sequentially
+                if (data.translation && data.translation !== "None") {
+                    speak(data.translation);
+                }
+
+                speak(data.response);
 
                 const hasCorrection = data.corrections &&
                     data.corrections !== "None" &&
                     data.corrections.toLowerCase().indexOf("no corrections") === -1;
 
                 if (hasCorrection) {
-                    // Larger delay if there's a translation to avoid overlapping
-                    const delay = (data.translation && data.translation !== "None") ? 4000 : 2000;
-                    setTimeout(() => {
-                        speak("I have a correction for you.");
-                        speak(data.corrections);
-                    }, delay);
+                    speak("I have a correction for you. " + data.corrections);
                 }
             }
 

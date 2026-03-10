@@ -4,23 +4,20 @@
 <div class="row justify-content-center">
     <div class="col-md-8 text-center text-white bg-info p-5 rounded shadow">
         <h2>Vocabulary Matching Game</h2>
-        <p class="lead">Match the word to its correct meaning to earn points.</p>
+        <p class="lead" id="game-subtitle">Loading your personalised vocabulary game...</p>
 
         <div class="card mt-4 text-dark text-start shadow-sm mx-auto" style="max-width: 600px;">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="fs-4fw-bold">Score: <span id="score">0</span></span>
-                    <span class="fs-5 text-muted">Question: <span id="q-num">1</span>/5</span>
+                    <span class="fs-4 fw-bold">Score: <span id="score">0</span></span>
+                    <span class="fs-5 text-muted">Question: <span id="q-num">1</span>/<span id="total-q">5</span></span>
                 </div>
 
-                <h3 class="text-center py-4 bg-light rounded" id="word-display">Word goes here</h3>
+                <h3 class="text-center py-4 bg-light rounded" id="word-display">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span> Loading...
+                </h3>
 
-                <div class="d-grid gap-2 mt-4" id="options-container">
-                    <button class="btn btn-outline-primary option-btn" data-correct="false">Option 1</button>
-                    <button class="btn btn-outline-primary option-btn" data-correct="false">Option 2</button>
-                    <button class="btn btn-outline-primary option-btn" data-correct="false">Option 3</button>
-                    <button class="btn btn-outline-primary option-btn" data-correct="false">Option 4</button>
-                </div>
+                <div class="d-grid gap-2 mt-4" id="options-container"></div>
 
                 <div id="feedback" class="mt-4 text-center fs-5 d-none"></div>
                 <div class="text-center mt-3 d-none" id="next-btn-container">
@@ -34,131 +31,105 @@
 
 {% block extra_js %}
 <script>
-    const allPairsList = [
-        { word: 'Abundant', meaning: 'Existing or available in large quantities; plentiful.' },
-        { word: 'Diligent', meaning: 'Having or showing care and conscientiousness in one\'s work or duties.' },
-        { word: 'Eloquent', meaning: 'Fluent or persuasive in speaking or writing.' },
-        { word: 'Inevitable', meaning: 'Certain to happen; unavoidable.' },
-        { word: 'Lucrative', meaning: 'Producing a great deal of profit.' },
-        { word: 'Obsolete', meaning: 'No longer produced or used; out of date.' },
-        { word: 'Peculiar', meaning: 'Strange or odd; unusual.' },
-        { word: 'Resilient', meaning: 'Able to withstand or recover quickly from difficult conditions.' },
-        { word: 'Versatile', meaning: 'Able to adapt or be adapted to many different functions or activities.' },
-        { word: 'Zealous', meaning: 'Showing great energy or enthusiasm in pursuit of a cause or an objective.' },
-        { word: 'Authenticate', meaning: 'Prove or show to be true, genuine, or valid.' },
-        { word: 'Benevolent', meaning: 'Well meaning and kindly.' },
-        { word: 'Capricious', meaning: 'Given to sudden and unaccountable changes of mood or behavior.' },
-        { word: 'Enigma', meaning: 'A person or thing that is mysterious, puzzling, or difficult to understand.' },
-        { word: 'Gracious', meaning: 'Courteous, kind, and pleasant.' },
-        { word: 'Meticulous', meaning: 'Showing great attention to detail; very careful and precise.' },
-        { word: 'Pragmatic', meaning: 'Dealing with things sensibly and realistically.' },
-        { word: 'Serene', meaning: 'Calm, peaceful, and untroubled; tranquil.' },
-        { word: 'Tenacious', meaning: 'Tending to keep a firm hold of something; clinging or adhering closely.' },
-        { word: 'Vindicate', meaning: 'Clear someone of blame or suspicion.' },
-        { word: 'Apprehensive', meaning: 'Anxious or fearful that something bad or unpleasant will happen.' },
-        { word: 'Candid', meaning: 'Truthful and straightforward; frank.' },
-        { word: 'Conspicuous', meaning: 'Standing out so as to be clearly visible.' },
-        { word: 'Deference', meaning: 'Humble submission and respect.' },
-        { word: 'Ephemeral', meaning: 'Lasting for a very short time.' },
-        { word: 'Fastidious', meaning: 'Very attentive to and concerned about accuracy and detail.' },
-        { word: 'Gullible', meaning: 'Easily persuaded to believe something; credulous.' },
-        { word: 'Haughty', meaning: 'Arrogantly superior and disdainful.' },
-        { word: 'Impetuous', meaning: 'Acting or done quickly and without thought or care.' },
-        { word: 'Jovial', meaning: 'Cheerful and friendly.' },
-        { word: 'Lethargic', meaning: 'Affected by lethargy; sluggish and apathetic.' },
-        { word: 'Mundane', meaning: 'Lacking interest or excitement; dull.' },
-        { word: 'Nonchalant', meaning: 'Feeling or appearing casually calm and relaxed.' },
-        { word: 'Oblivious', meaning: 'Not aware of or not concerned about what is happening around one.' },
-        { word: 'Pensive', meaning: 'Engaged in, involving, or reflecting deep or serious thought.' },
-        { word: 'Quaint', meaning: 'Attractively unusual or old-fashioned.' },
-        { word: 'Redundant', meaning: 'Not or no longer needed or useful; superfluous.' },
-        { word: 'Stoic', meaning: 'Enduring pain or hardship without showing feelings or complaining.' },
-        { word: 'Trepidation', meaning: 'A feeling of fear or agitation about something that may happen.' },
-        { word: 'Ubiquitous', meaning: 'Present, appearing, or found everywhere.' }
-    ];
-
-    function shuffleOptions(array) {
-        let currentIndex = array.length, randomIndex;
-        while (currentIndex != 0) {
-            randomIndex = Math.floor(Math.random() * currentIndex);
-            currentIndex--;
-            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-        }
-        return array;
-    }
-
     let currentQ = 0;
     let score = 0;
     let questions = [];
+    let allMeanings = [];
 
     const wordDisplay = document.getElementById('word-display');
     const optionsContainer = document.getElementById('options-container');
     const scoreDisplay = document.getElementById('score');
     const qNumDisplay = document.getElementById('q-num');
+    const totalQDisplay = document.getElementById('total-q');
     const feedback = document.getElementById('feedback');
     const nextBtnContainer = document.getElementById('next-btn-container');
     const btnNext = document.getElementById('btn-next');
+    const subtitle = document.getElementById('game-subtitle');
 
-    // Generate a fresh set of pairs every time the game starts
-    function initNewGame() {
-        let askedIndices = JSON.parse(sessionStorage.getItem('vocab_asked_indices') || '[]');
-
-        let availablePairs = allPairsList.map((p, idx) => ({ ...p, originalIndex: idx }))
-            .filter(p => !askedIndices.includes(p.originalIndex));
-
-        if (availablePairs.length < 5) {
-            // Not enough pairs left, reset the pool
-            askedIndices = [];
-            availablePairs = allPairsList.map((p, idx) => ({ ...p, originalIndex: idx }));
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
         }
+        return array;
+    }
 
-        // Randomly pick 5 target words
-        const selectedPairs = shuffleOptions(availablePairs).slice(0, 5);
-
-        // Save the newly asked indices
-        const newlyAskedIndices = selectedPairs.map(p => p.originalIndex);
-        sessionStorage.setItem('vocab_asked_indices', JSON.stringify([...askedIndices, ...newlyAskedIndices]));
-
-        // For each selected correct word, get 3 random bad options from the master list (which can repeat among questions, that's fine)
-        questions = selectedPairs.map(pair => {
-            const otherMeanings = shuffleOptions(allPairsList.filter(p => p.word !== pair.word).map(p => p.meaning)).slice(0, 3);
-            const options = shuffleOptions([pair.meaning, ...otherMeanings]);
-            return {
-                word: pair.word,
-                correct: pair.meaning,
-                options: options
-            };
+    function getCookie(name) {
+        let value = null;
+        document.cookie.split(';').forEach(c => {
+            const trimmed = c.trim();
+            if (trimmed.startsWith(name + '=')) value = decodeURIComponent(trimmed.substring(name.length + 1));
         });
+        return value;
+    }
+
+    async function markSeen(questionId) {
+        try {
+            await fetch('/api/mark-seen/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ question_id: questionId })
+            });
+        } catch (e) { }
+    }
+
+    async function initNewGame() {
+        wordDisplay.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span> Loading...';
+        optionsContainer.innerHTML = '';
+
+        try {
+            const resp = await fetch('/api/get-game/vocab/');
+            if (!resp.ok) throw new Error('No data');
+            const data = await resp.json();
+            const items = shuffle(data.items || []);
+
+            allMeanings = items.map(i => i.meaning);
+
+            questions = items.map(pair => {
+                const otherMeanings = shuffle(allMeanings.filter(m => m !== pair.meaning)).slice(0, 3);
+                return {
+                    word: pair.word,
+                    correct: pair.meaning,
+                    options: shuffle([pair.meaning, ...otherMeanings]),
+                    id: pair.id
+                };
+            });
+
+            subtitle.textContent = data.has_conversation
+                ? 'Vocabulary from your AI conversation!'
+                : 'Match the word to its correct meaning to earn points.';
+
+        } catch (e) {
+            wordDisplay.innerText = 'Error loading game. Please try again.';
+            return;
+        }
 
         currentQ = 0;
         score = 0;
-        scoreDisplay.innerText = "0";
-
+        scoreDisplay.innerText = '0';
+        totalQDisplay.innerText = questions.length;
         loadQuestion();
     }
 
     function loadQuestion() {
         if (currentQ >= questions.length) {
-            wordDisplay.innerText = "Level Completed!";
+            wordDisplay.innerText = 'Level Completed!';
             optionsContainer.innerHTML = `<h4 class="text-center text-success mt-3 mb-4">Final Score: ${score}/${questions.length * 10}</h4>`;
             feedback.classList.add('d-none');
-            nextBtnContainer.innerHTML = `<button class="btn btn-primary btn-lg" onclick="location.reload()">Play Next Level</button>`;
+            nextBtnContainer.innerHTML = `<button class="btn btn-primary btn-lg" onclick="initNewGame()">Play Next Level</button>`;
             nextBtnContainer.classList.remove('d-none');
             return;
         }
-
         const q = questions[currentQ];
         wordDisplay.innerText = q.word;
         qNumDisplay.innerText = currentQ + 1;
 
-        const shuffledOptions = shuffleOptions([...q.options]);
-
         optionsContainer.innerHTML = '';
-        shuffledOptions.forEach(opt => {
+        shuffle([...q.options]).forEach(opt => {
             const btn = document.createElement('button');
             btn.className = 'btn btn-outline-primary option-btn text-start p-3 fw-medium';
             btn.innerText = opt;
-            btn.onclick = () => checkAnswer(opt === q.correct, btn);
+            btn.onclick = () => checkAnswer(opt === q.correct, btn, q.correct, q.id);
             optionsContainer.appendChild(btn);
         });
 
@@ -166,17 +137,14 @@
         nextBtnContainer.classList.add('d-none');
     }
 
-    function checkAnswer(isCorrect, selectedBtn) {
-        // Disable all buttons
-        const btns = optionsContainer.querySelectorAll('.option-btn');
-        btns.forEach(b => {
+    function checkAnswer(isCorrect, selectedBtn, correctMeaning, questionId) {
+        document.querySelectorAll('.option-btn').forEach(b => {
             b.disabled = true;
-            if (b.innerText === questions[currentQ].correct) {
+            if (b.innerText === correctMeaning) {
                 b.classList.replace('btn-outline-primary', 'btn-success');
                 b.classList.add('text-white');
             }
         });
-
         feedback.classList.remove('d-none');
         if (isCorrect) {
             feedback.innerHTML = '<strong><i class="bi bi-check-circle-fill"></i> Correct! 🎉</strong>';
@@ -186,19 +154,15 @@
         } else {
             selectedBtn.classList.replace('btn-outline-primary', 'btn-danger');
             selectedBtn.classList.add('text-white');
-            feedback.innerHTML = '<strong><i class="bi bi-x-circle-fill"></i> Wrong!</strong> The correct answer was: <em>' + questions[currentQ].correct + '</em>';
+            feedback.innerHTML = '<strong><i class="bi bi-x-circle-fill"></i> Wrong!</strong> The correct answer was: <em>' + correctMeaning + '</em>';
             feedback.className = 'mt-4 p-3 rounded bg-danger bg-opacity-10 border border-danger text-danger';
         }
-
         nextBtnContainer.classList.remove('d-none');
+        if (questionId) markSeen(questionId);
     }
 
-    btnNext.addEventListener('click', () => {
-        currentQ++;
-        loadQuestion();
-    });
+    btnNext.addEventListener('click', () => { currentQ++; loadQuestion(); });
 
-    // Initialize game
     initNewGame();
 </script>
 {% endblock %}

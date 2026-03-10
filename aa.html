@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI English Trainer</title>
+
+<style>
+body{
+font-family: Arial;
+background: linear-gradient(135deg,#4facfe,#00f2fe);
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+.container{
+background:white;
+width:400px;
+padding:20px;
+border-radius:10px;
+box-shadow:0 5px 15px rgba(0,0,0,0.2);
+}
+
+h2{
+text-align:center;
+}
+
+#chat{
+height:300px;
+overflow-y:auto;
+border:1px solid #ddd;
+padding:10px;
+margin-bottom:10px;
+}
+
+.user{
+color:blue;
+margin:5px 0;
+}
+
+.ai{
+color:green;
+margin:5px 0;
+}
+
+button{
+width:100%;
+padding:10px;
+background:#4facfe;
+color:white;
+border:none;
+border-radius:5px;
+cursor:pointer;
+}
+
+button:hover{
+background:#2b7de9;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>AI English Trainer 🎤</h2>
+
+<div id="chat"></div>
+
+<button onclick="startListening()">🎤 Speak</button>
+
+</div>
+
+<script>
+
+const chat=document.getElementById("chat")
+
+function addMessage(text,cls){
+let div=document.createElement("div")
+div.className=cls
+div.innerText=text
+chat.appendChild(div)
+chat.scrollTop=chat.scrollHeight
+}
+
+function speak(text){
+let speech=new SpeechSynthesisUtterance(text)
+speech.lang="en-US"
+speechSynthesis.speak(speech)
+}
+
+function correctSentence(sentence){
+
+let corrections={
+"i am fine":"I am fine.",
+"my name is":"My name is",
+"i live in":"I live in",
+"i am study":"I am studying",
+"i am go":"I am going"
+}
+
+let lower=sentence.toLowerCase()
+
+for(let key in corrections){
+if(lower.includes(key)){
+return corrections[key]
+}
+}
+
+return sentence
+}
+
+function aiResponse(userText){
+
+let corrected=correctSentence(userText)
+
+if(corrected!==userText){
+addMessage("AI: Correct sentence → "+corrected,"ai")
+speak("You should say "+corrected)
+}else{
+addMessage("AI: Good sentence! Tell me more.","ai")
+speak("Good sentence. Tell me more.")
+}
+
+}
+
+function startListening(){
+
+let recognition=new(window.SpeechRecognition||window.webkitSpeechRecognition)()
+
+recognition.lang="en-US"
+
+recognition.start()
+
+recognition.onresult=function(event){
+
+let text=event.results[0][0].transcript
+
+addMessage("You: "+text,"user")
+
+aiResponse(text)
+
+}
+
+}
+
+speak("Hello. Tell me about yourself.")
+
+addMessage("AI: Hello! Tell me about yourself.","ai")
+
+</script>
+
+</body>
+</html>
