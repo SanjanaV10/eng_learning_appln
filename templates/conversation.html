@@ -71,251 +71,401 @@
 
 {% block extra_js %}
 <script>
-    const chatBox = document.getElementById('chat-box');
-    const userInput = document.getElementById('user-input');
-    const btnSend = document.getElementById('btn-send');
-    const btnRecord = document.getElementById('btn-record');
-    const recordingStatus = document.getElementById('recording-status');
-    const aiThinking = document.getElementById('ai-thinking');
-    const correctionBox = document.getElementById('correction-box');
-    const correctionText = document.getElementById('correction-text');
-    const recordIcon = document.getElementById('record-icon');
-    const recordText = document.getElementById('record-text');
+const chatBox = document.getElementById('chat-box');
+const userInput = document.getElementById('user-input');
+const btnSend = document.getElementById('btn-send');
+const btnRecord = document.getElementById('btn-record');
+const recordingStatus = document.getElementById('recording-status');
+const aiThinking = document.getElementById('ai-thinking');
+const correctionBox = document.getElementById('correction-box');
+const correctionText = document.getElementById('correction-text');
+const recordIcon = document.getElementById('record-icon');
+const recordText = document.getElementById('record-text');
 
-    let isRecording = false;
-    let voiceModeActive = false; // Tracks if we are in the continuous hands-free ChatGPT-style loop
+let isRecording = false;
+let finalTranscript = '';
+let voiceModeActive = true; // FIXED: previously undefined
 
-    // Speech Recognition Setup: ChatGPT Style
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
+// csrfToken is already declared in base.html
 
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        // continuous=false means it listens for a single utterance and automatically
-        // stops when the user stops speaking.
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
 
-        recognition.onstart = function () {
-            isRecording = true;
-            userInput.value = '';
-            btnRecord.classList.replace('btn-outline-danger', 'btn-danger');
-            recordIcon.innerText = "🎧";
-            recordText.innerText = "Listening...";
-            recordingStatus.classList.remove('d-none');
-            recordingStatus.innerText = "Listening... just speak naturally.";
+/* ---------------------------
+   SPEECH RECOGNITION (AssemblyAI)
+----------------------------*/
 
-            // Cancel any ongoing AI speech so it doesn't talk over you
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-            }
-        };
+let audioContext = null;
+let scriptProcessor = null;
+let mediaStream = null;
+let assemblySocket = null;
 
-        recognition.onresult = function (event) {
-            let tempString = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                tempString += event.results[i][0].transcript;
-            }
-            userInput.value = tempString;
-        };
+async function startAssemblyAI() {
+    isRecording = true;
+    finalTranscript = "";
+    userInput.value = "";
 
-        recognition.onerror = function (event) {
-            if (event.error !== 'no-speech') {
-                console.error("Speech recognition error:", event.error);
-                recordingStatus.innerText = "Error: " + event.error;
-            }
-        };
+    btnRecord.classList.replace("btn-outline-danger", "btn-danger");
+    recordIcon.innerText = "🔴";
+    recordText.innerText = "Stop & Send";
 
-        recognition.onend = function () {
-            // The browser automatically stopped because the user finished speaking.
-            if (isRecording) {
-                isRecording = false;
-                resetRecordButtonUI();
+    recordingStatus.classList.remove("d-none");
+    recordingStatus.innerText = "🎤 Connecting to AssemblyAI...";
 
-                // Automatically send the message if they said something
-                if (userInput.value.trim().length > 0) {
-                    sendMessage();
-                } else if (voiceModeActive) {
-                    // They didn't say anything, but we are supposed to be in voice mode.
-                    // Keep listening.
-                    try { recognition.start(); } catch (e) { }
-                }
-            }
-        };
-    } else {
-        btnRecord.disabled = true;
-        btnRecord.title = "Speech recognition is not supported in this browser.";
+    if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
     }
 
-    function resetRecordButtonUI() {
-        btnRecord.classList.replace('btn-danger', 'btn-outline-danger');
-        recordIcon.innerText = "🎙️";
-        recordText.innerText = "Start Speaking";
-        recordingStatus.classList.add('d-none');
-    }
-
-    function stopVoiceMode() {
-        voiceModeActive = false;
-        isRecording = false;
-        if (recognition) recognition.stop();
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-        resetRecordButtonUI();
-    }
-
-    btnRecord.addEventListener('click', () => {
-        if (voiceModeActive) {
-            // If they click the button while voice mode is active, it means STOP EVERYTHING
-            stopVoiceMode();
-            if (userInput.value.trim().length > 0) {
-                sendMessage();
-            }
-        } else {
-            // Start ChatGPT-style voice mode loop
-            voiceModeActive = true;
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel(); // Interrupt AI if talking
-            try {
-                recognition.start();
-            } catch (e) {
-                console.error("Could not start:", e);
-            }
+    try {
+        // 1. Get temp token from our Django backend
+        const response = await fetch('/api/assemblyai-token/');
+        const data = await response.json();
+        
+        if (!data.token) {
+            throw new Error(data.error || "Failed to get token");
         }
-    });
 
-    // Text to Speech with automatic queuing mechanism
-    let utteranceQueueCount = 0;
-    function speak(text) {
-        if ('speechSynthesis' in window) {
-            let cleanText = text.replace(/\*/g, '')
-                .replace(/#/g, '')
-                .replace(/Q\d+:/gi, "")
-                .replace(/A\d+:/gi, "");
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = 'en-US';
-            utterance.rate = 1.0;
+        const token = data.token;
+        console.log("Token received:", token);
+        
+        // Use v3 API - speech_model is a query param
+        const wsUrl = `wss://streaming.assemblyai.com/v3/ws?token=${token}&speech_model=u3-rt-pro`;
+        console.log("Connecting to:", wsUrl);
+        
+        assemblySocket = new WebSocket(wsUrl);
 
-            utteranceQueueCount++;
+        assemblySocket.onerror = (e) => {
+            console.error("WS Error:", e);
+            console.log("ReadyState:", assemblySocket?.readyState);
+            console.log("URL:", assemblySocket?.url);
+        };
 
-            utterance.onend = function () {
-                utteranceQueueCount--;
-                // If this was the last thing the AI had to say, and we are in voice mode,
-                // automatically turn the microphone back on!
-                if (utteranceQueueCount === 0 && voiceModeActive) {
-                    try { recognition.start(); } catch (e) { }
+        assemblySocket.onopen = async () => {
+            console.log("WS Connected!");
+            recordingStatus.innerText = "🎤 Waiting for session...";
+            
+            // Wait for Begin message
+            const originalOnMessage = assemblySocket.onmessage;
+            assemblySocket.onmessage = (event) => {
+                const data = event.data;
+                if (typeof data === 'string') {
+                    const res = JSON.parse(data);
+                    console.log("AssemblyAI:", res);
+                    if (res.type === "Begin") {
+                        recordingStatus.innerText = "🎤 Listening... Speak now";
+                        startMicrophone();
+                    } else {
+                        originalOnMessage.call(assemblySocket, event);
+                    }
+                } else {
+                    // Binary data - forward to original handler
+                    originalOnMessage.call(assemblySocket, event);
                 }
             };
+        };
 
-            utterance.onerror = function () {
-                utteranceQueueCount--;
-            }
+        async function startMicrophone() {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            
+            scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+            
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(audioContext.destination);
 
-            window.speechSynthesis.speak(utterance);
-        }
-    }
-
-    // Format text: detect Q&A pattern and render line by line
-    function formatAIText(text) {
-        const lines = text.split('\n');
-        let html = '';
-        lines.forEach(line => {
-            const trimmed = line.trim();
-            if (!trimmed) { html += '<br>'; return; }
-            if (/^Q\d+:/i.test(trimmed)) {
-                html += `<div style="color:#0056b3;font-weight:700;margin-top:6px;">${trimmed}</div>`;
-            } else if (/^A\d+:/i.test(trimmed)) {
-                html += `<div style="color:#155724;font-weight:600;padding-left:1rem;margin-bottom:4px;">${trimmed}</div>`;
-            } else {
-                html += `<div>${trimmed}</div>`;
-            }
-        });
-        return html;
-    }
-
-    // Chat functionality
-    function addMessage(sender, htmlContent, isAi = false) {
-        const div = document.createElement('div');
-        div.className = `alert py-2 mb-2 ${isAi ? 'alert-info text-start' : 'alert-secondary text-end'}`;
-        div.innerHTML = `<strong>${sender}:</strong> ${htmlContent}`;
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    async function sendMessage() {
-        const message = userInput.value.trim();
-        if (!message) return;
-
-        addMessage('You', message);
-        userInput.value = '';
-        aiThinking.classList.remove('d-none');
-
-        try {
-            const response = await fetch('/api/chat/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ message: message })
-            });
-
-            const data = await response.json();
-            aiThinking.classList.add('d-none');
-
-            if (data.response) {
-                let messageHtml = "";
-
-                // Show translation if user spoke in native language
-                if (data.translation && data.translation !== "None") {
-                    messageHtml += `<div class="translation-hint text-dark"><i class="bi bi-translate"></i> <span>${data.translation}</span></div>`;
+            scriptProcessor.onaudioprocess = (e) => {
+                if (!isRecording || !assemblySocket || assemblySocket.readyState !== WebSocket.OPEN) return;
+                
+                const inputData = e.inputBuffer.getChannelData(0);
+                
+                // Convert Float32 to Int16
+                const pcm16 = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    const s = Math.max(-1, Math.min(1, inputData[i]));
+                    pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
+                
+                // Send binary directly for v3
+                assemblySocket.send(pcm16.buffer);
+            };
+        };
 
-                // Format the response (handles Q&A line-by-line)
-                messageHtml += formatAIText(data.response);
-
-                // Show correction in Orange Box inside chat
-                if (data.corrections && data.corrections !== "None" && data.corrections.toLowerCase() !== "no corrections needed.") {
-                    messageHtml += `<div class="orange-box"><strong>Correction:</strong> ${data.corrections}</div>`;
-
-                    // Also update the standalone correction box at the bottom
-                    correctionBox.classList.remove('d-none');
-                    correctionText.innerText = data.corrections;
+        assemblySocket.onmessage = (event) => {
+            console.log("AssemblyAI message:", event.data);
+            
+            // Handle binary data from v3
+            if (event.data instanceof Blob || event.data instanceof ArrayBuffer) {
+                return; // Skip binary data
+            }
+            
+            const res = JSON.parse(event.data);
+            
+            // Handle Turn messages (v3 format)
+            if (res.type === "Turn" && res.transcript) {
+                if (res.turn_is_formatted) {
+                    finalTranscript += res.transcript + " ";
+                    userInput.value = finalTranscript.trim();
                 } else {
-                    correctionBox.classList.add('d-none');
-                }
-
-                addMessage('AI', messageHtml, true);
-
-                // Cancel any previous speech so sentences don't overlap
-                if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                }
-
-                // Add to TTS queue sequentially
-                if (data.translation && data.translation !== "None") {
-                    speak(data.translation);
-                }
-
-                speak(data.response);
-
-                const hasCorrection = data.corrections &&
-                    data.corrections !== "None" &&
-                    data.corrections.toLowerCase().indexOf("no corrections") === -1;
-
-                if (hasCorrection) {
-                    speak("I have a correction for you. " + data.corrections);
+                    userInput.value = (finalTranscript + " " + res.transcript).trim();
                 }
             }
+            // Handle v3 transcript - message_type format
+            else if (res.message_type === "PartialTranscript" || res.message_type === "FinalTranscript") {
+                if (res.message_type === "FinalTranscript") {
+                    finalTranscript += res.text + " ";
+                    userInput.value = finalTranscript.trim();
+                } else {
+                    userInput.value = (finalTranscript + " " + res.text).trim();
+                }
+            }
+        };
 
-        } catch (error) {
-            console.error('Error:', error);
-            aiThinking.classList.add('d-none');
-            addMessage('System', 'Error communicating with server.', true);
+        assemblySocket.onerror = (e) => {
+            console.error("AssemblyAI WS Error", e);
+            console.log("AssemblyAI WS readyState:", assemblySocket?.readyState);
+            console.log("AssemblyAI WS url:", assemblySocket?.url);
+            recordingStatus.innerText = "Connection error.";
+        };
+
+        assemblySocket.onclose = (e) => {
+            console.log("AssemblyAI WS closed", e.code, e.reason);
+            if (isRecording) {
+                stopAssemblyAI();
+                resetRecordButton();
+                isRecording = false;
+            }
+        };
+
+    } catch (err) {
+        console.error("Error starting AssemblyAI:", err);
+        recordingStatus.innerText = "Error starting voice recognition.";
+        resetRecordButton();
+        isRecording = false;
+    }
+}
+
+function stopAssemblyAI() {
+    if (scriptProcessor) {
+        scriptProcessor.disconnect();
+        scriptProcessor = null;
+    }
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+    }
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    if (assemblySocket) {
+        if (assemblySocket.readyState === WebSocket.OPEN) {
+            // Optional AssemblyAI terminate message
+            assemblySocket.send(JSON.stringify({ terminate_session: true }));
+            assemblySocket.close();
         }
+        assemblySocket = null;
+    }
+}
+
+/* ---------------------------
+   RECORD BUTTON
+----------------------------*/
+
+function resetRecordButton(){
+    btnRecord.classList.replace("btn-danger","btn-outline-danger");
+    recordIcon.innerText = "🎙️";
+    recordText.innerText = "Start Speaking";
+    recordingStatus.classList.add("d-none");
+}
+
+btnRecord.addEventListener("click", () => {
+    if(isRecording){
+        // STOP
+        isRecording = false;
+        stopAssemblyAI();
+        resetRecordButton();
+
+        if(userInput.value.trim()){
+            sendMessage();
+        }
+    }else{
+        // START
+        startAssemblyAI();
+    }
+});
+
+
+/* ---------------------------
+   TEXT TO SPEECH
+----------------------------*/
+
+function speak(text){
+
+    if(!('speechSynthesis' in window)) return;
+
+    const cleanText = text
+        .replace(/\*/g,"")
+        .replace(/#/g,"")
+        .replace(/Q\d+:/gi,"")
+        .replace(/A\d+:/gi,"");
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+
+    utterance.lang = "en-US";
+    utterance.rate = 1;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
+
+}
+
+
+/* ---------------------------
+   CHAT UI
+----------------------------*/
+
+function addMessage(sender,content,isAi=false){
+
+    const div = document.createElement("div");
+
+    div.className = `alert py-2 mb-2 ${isAi ? "alert-info text-start" : "alert-secondary text-end"}`;
+
+    div.innerHTML = `<strong>${sender}:</strong> ${content}`;
+
+    chatBox.appendChild(div);
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+}
+
+
+function formatAIText(text){
+
+    const lines = text.split("\n");
+
+    let html = "";
+
+    lines.forEach(line=>{
+
+        const t = line.trim();
+
+        if(!t){
+            html += "<br>";
+            return;
+        }
+
+        if(/^Q\d+:/i.test(t)){
+            html += `<div style="font-weight:700;color:#0056b3">${t}</div>`;
+        }
+        else if(/^A\d+:/i.test(t)){
+            html += `<div style="padding-left:15px;color:#155724">${t}</div>`;
+        }
+        else{
+            html += `<div>${t}</div>`;
+        }
+
+    });
+
+    return html;
+
+}
+
+
+/* ---------------------------
+   SEND MESSAGE
+----------------------------*/
+
+async function sendMessage(){
+
+    const message = userInput.value.trim();
+
+    if(!message) return;
+
+    addMessage("You",message);
+
+    userInput.value = "";
+
+    aiThinking.classList.remove("d-none");
+
+    try{
+
+        const response = await fetch("/api/chat/",{
+
+            method:"POST",
+
+            headers:{
+                "Content-Type":"application/json",
+                "X-CSRFToken":csrfToken
+            },
+
+            body:JSON.stringify({
+                message:message
+            })
+
+        });
+
+        const data = await response.json();
+
+        aiThinking.classList.add("d-none");
+
+        if(data.response){
+
+            let html = "";
+
+            if(data.translation && data.translation !== "None"){
+
+                html += `<div class="translation-hint">
+                🌐 ${data.translation}
+                </div>`;
+
+            }
+
+            html += formatAIText(data.response);
+
+            if(data.corrections && data.corrections !== "None"){
+
+                html += `<div class="orange-box">
+                <b>Correction:</b> ${data.corrections}
+                </div>`;
+
+                correctionBox.classList.remove("d-none");
+                correctionText.innerText = data.corrections;
+
+            }else{
+                correctionBox.classList.add("d-none");
+            }
+
+            addMessage("AI",html,true);
+
+            speak(data.response);
+
+        }
+
+    }catch(error){
+
+        console.error(error);
+
+        aiThinking.classList.add("d-none");
+
+        addMessage("System","Server error.",true);
+
     }
 
-    btnSend.addEventListener('click', sendMessage);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
+}
+
+
+/* ---------------------------
+   BUTTON EVENTS
+----------------------------*/
+
+btnSend.addEventListener("click",sendMessage);
+
+userInput.addEventListener("keypress",(e)=>{
+
+    if(e.key==="Enter"){
+        sendMessage();
+    }
+
+});
 </script>
 {% endblock %}

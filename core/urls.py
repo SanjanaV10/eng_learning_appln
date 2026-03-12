@@ -11,6 +11,7 @@ urlpatterns = [
     path('quizzes/', views.quizzes, name='quizzes'),
     path('analysis/', views.analysis, name='analysis'),
     path('api/chat/', views.api_chat, name='api_chat'),
+    path('api/assemblyai-token/', views.get_assemblyai_token, name='assemblyai_token'),
     path('api/get-quiz/', views.get_quiz_data, name='get_quiz_data'),
     path('api/get-game/<str:category>/', views.get_game_data, name='get_game_data'),
     path('api/mark-seen/', views.mark_question_seen, name='mark_question_seen'),

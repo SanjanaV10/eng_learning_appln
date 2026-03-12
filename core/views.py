@@ -6,6 +6,7 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from .models import UserInteraction, Question, UserProgress, SearchHistory
 import random
+import requests
 import json
 import os
 import openai
@@ -382,6 +383,25 @@ def clear_history(request):
         SearchHistory.objects.filter(user=request.user).delete()
         return JsonResponse({'status': 'cleared'})
     return JsonResponse({'error': 'POST required'}, status=405)
+
+ASSEMBLYAI_API_KEY = os.environ.get('ASSEMBLYAI_API_KEY', '')
+print(ASSEMBLYAI_API_KEY)
+@login_required
+def get_assemblyai_token(request):
+    """Create a temporary AssemblyAI token for browser-side WebSocket connections."""
+    try:
+        # v3 streaming token endpoint
+        resp = requests.get(
+            'https://streaming.assemblyai.com/v3/token',
+            params={'expires_in_seconds': 120},
+            headers={'Authorization': f'Bearer {ASSEMBLYAI_API_KEY}'}
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return JsonResponse({'token': data['token']})
+    except Exception as e:
+        print(f"DEBUG: AssemblyAI token error: {e}")
+        return JsonResponse({'error': 'Could not get token'}, status=500)
 
 def signup_view(request):
     if request.method == 'POST':
