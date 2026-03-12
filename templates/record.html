@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-white"
+style="z-index:1050;opacity:0.9">
+
+<div class="d-flex justify-content-center align-items-center h-100 flex-column">
+
+<div class="spinner-border text-primary" style="width:5rem;height:5rem"></div>
+
+<h3 class="mt-4">Analyzing your speech...</h3>
+
+<p class="text-muted">Checking grammar and generating reply...</p>
+
+</div>
+</div>
+
+
+
+<div class="row justify-content-center">
+
+<div class="col-md-8">
+
+<div class="card shadow">
+
+<div class="card-header bg-primary text-white text-center">
+
+<h3>English Speaking Practice</h3>
+
+</div>
+
+
+<div class="text-center">
+
+<p>Click Start and speak in English.</p>
+
+<button type="button" id="start-btn" class="btn btn-success btn-lg mx-2">
+🎤 Start Speaking
+</button>
+
+<button type="button" id="stop-btn" class="btn btn-danger btn-lg mx-2" disabled>
+⏹ Stop
+</button>
+
+<p id="record-status" class="text-muted mt-2"></p>
+
+<audio id="audio-playback" controls class="d-none w-100 mt-3"></audio>
+
+<form id="record-form" method="POST" enctype="multipart/form-data" class="mt-4 d-none">
+{% csrf_token %}
+
+<input type="file" id="blob-file" name="uploaded_file" class="d-none">
+
+<button type="submit" class="btn btn-primary w-100">
+Analyze Speech
+</button>
+
+</form>
+
+</div>
+</div>
+
+
+
+<!-- RESULT AREA -->
+
+<div class="card shadow mt-4 d-none" id="result-box">
+
+<div class="card-header bg-success text-white">
+
+<h5>Speech Analysis</h5>
+
+</div>
+
+<div class="card-body">
+
+<p><b>Your Sentence:</b></p>
+<p id="user-text" class="text-danger"></p>
+
+<p><b>Correct Sentence:</b></p>
+<p id="correct-text" class="text-success"></p>
+
+<p><b>AI Reply:</b></p>
+<p id="ai-reply" class="text-primary"></p>
+
+</div>
+
+</div>
+
+</div>
+</div>
+
+{% endblock %}
+
+
+
+{% block scripts %}
+
+<script>
+
+let mediaRecorder
+let audioChunks=[]
+let stream
+
+const startBtn=document.getElementById('start-btn')
+const stopBtn=document.getElementById('stop-btn')
+const audioPlayback=document.getElementById('audio-playback')
+const recordForm=document.getElementById('record-form')
+const blobFileInput=document.getElementById('blob-file')
+
+const resultBox=document.getElementById('result-box')
+const userText=document.getElementById('user-text')
+const correctText=document.getElementById('correct-text')
+const aiReply=document.getElementById('ai-reply')
+
+const statusText=document.getElementById('record-status')
+
+
+
+/* START RECORDING */
+
+startBtn.onclick=async()=>{
+
+try{
+
+stream=await navigator.mediaDevices.getUserMedia({audio:true})
+
+mediaRecorder=new MediaRecorder(stream)
+
+mediaRecorder.ondataavailable=e=>{
+if(e.data.size>0){
+audioChunks.push(e.data)
+}
+}
+
+mediaRecorder.onstop=()=>{
+
+const blob=new Blob(audioChunks,{type:'audio/webm'})
+
+const url=URL.createObjectURL(blob)
+
+audioPlayback.src=url
+audioPlayback.classList.remove('d-none')
+
+const file=new File([blob],"speech.webm",{type:"audio/webm"})
+
+const dt=new DataTransfer()
+dt.items.add(file)
+blobFileInput.files=dt.files
+
+recordForm.classList.remove('d-none')
+
+audioChunks=[]
+
+stream.getTracks().forEach(track=>track.stop())
+
+statusText.innerText="Recording stopped."
+
+}
+
+mediaRecorder.start()
+
+startBtn.disabled=true
+stopBtn.disabled=false
+
+statusText.innerText="Recording... Speak now."
+
+}catch(err){
+
+alert("Microphone access denied or unavailable.")
+
+}
+
+}
+
+
+
+/* STOP RECORDING */
+
+stopBtn.onclick=()=>{
+
+if(mediaRecorder){
+mediaRecorder.stop()
+}
+
+startBtn.disabled=false
+stopBtn.disabled=true
+
+}
+
+
+
+/* SUBMIT AUDIO */
+
+recordForm.addEventListener("submit",async function(e){
+
+e.preventDefault()
+
+document.getElementById("loading-overlay").classList.remove("d-none")
+
+const formData=new FormData(recordForm)
+
+try{
+
+const response=await fetch("/analyze-speech/",{
+
+method:"POST",
+body:formData,
+headers:{
+"X-CSRFToken":"{{ csrf_token }}"
+}
+
+})
+
+const data=await response.json()
+
+document.getElementById("loading-overlay").classList.add("d-none")
+
+resultBox.classList.remove("d-none")
+
+userText.innerText=data.user_sentence || ""
+correctText.innerText=data.correct_sentence || ""
+aiReply.innerText=data.ai_reply || ""
+
+speak(data.ai_reply)
+
+}catch(err){
+
+alert("Error analyzing speech.")
+
+}
+
+})
+
+
+
+/* SPEAK AI RESPONSE */
+
+function speak(text){
+
+if(!text) return
+
+const speech=new SpeechSynthesisUtterance(text)
+
+speech.lang="en-US"
+
+window.speechSynthesis.cancel()
+
+window.speechSynthesis.speak(speech)
+
+}
+
+</script>
+
+{% endblock %}

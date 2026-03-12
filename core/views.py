@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
@@ -10,6 +11,9 @@ import os
 import openai
 from pathlib import Path
 from dotenv import load_dotenv
+import speech_recognition as sr
+import tempfile
+from pydub import AudioSegment
 
 # Build paths inside the project like this: Path(__file__).resolve().parent
 BASE_DIR = Path(__file__).resolve().parent
@@ -247,7 +251,17 @@ def mark_question_seen(request):
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'POST required'}, status=405)
 
+@login_required
+@csrf_exempt
 def api_chat(request):
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        resp = JsonResponse({})
+        resp["Access-Control-Allow-Origin"] = "*"
+        resp["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp["Access-Control-Allow-Headers"] = "Content-Type"
+        return resp
+
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -335,12 +349,16 @@ def api_chat(request):
         except Exception as hist_error:
             print(f"DEBUG: Failed to save search history: {str(hist_error)}")
 
-        return JsonResponse({
+        resp = JsonResponse({
             'response': bot_response,
             'corrections': corrections,
             'translation': translation
         })
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    resp = JsonResponse({'error': 'Invalid request method'}, status=400)
+    resp["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 @login_required
 def search_history(request):
